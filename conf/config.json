@@ -1,0 +1,26 @@
+{
+  "appdir": "{{appdir}}",
+
+  "server": {
+    "ipAddress": "127.0.0.1",
+    "tcpPort": 8080,
+    "rootFilesDirectory": "{{appdir}}/web"
+  },
+
+  "web": {
+  },
+
+  "logging": {
+    "console": {
+      "level": "INFO"
+    },
+    "file": {
+      "level": "DEBUG",
+      "maxBytes": 1048576,
+      "maxBackupCount": 16,
+      "filename": "{{appdir}}/log/example.log",
+      "mode": "a",
+      "dateFormat": "YYYY-MM-DD HH:mm:ss.SSS"
+    }
+  }
+}
