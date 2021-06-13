@@ -14,24 +14,9 @@
  * limitations under the License.
  */
 
-import { dayjs, log } from "../deps.js";
-
-export default async (req) => {
-  const logger = log.getLogger();
-
-  if ("POST" === req.method) {
-    const obj = await req.json();
-    logger.info(`Initiating broadcast, message: [${obj.message}]`);
-    const broadcast = () => {
-      if (req.server.closing) {
-        return;
-      }
-      req.server.broadcastWebsocket({
-        message: dayjs().format(),
-      });
-      setTimeout(broadcast, 1000);
-    };
-    broadcast();
-  }
-  return {};
-};
+export {
+  assert,
+  assertEquals,
+  assertStrictEquals,
+  assertThrows,
+} from "https://deno.land/std@0.97.0/testing/asserts.ts";

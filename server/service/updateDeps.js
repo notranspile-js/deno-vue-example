@@ -23,7 +23,7 @@ export default async () => {
       Deno.execPath(),
       "bundle",
       "--unstable",
-      //"--reload",
+      // "--reload",
       "deps_gen.ts",
       "deps.js",
     ],

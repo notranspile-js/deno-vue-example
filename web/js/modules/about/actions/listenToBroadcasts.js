@@ -15,9 +15,24 @@
  */
 
 export default async (ctx) => {
-  if (null === ctx.state.conf) {
-    const resp = await fetch("/api/config");
-    const conf = await resp.json();
-    ctx.commit("setConf", conf);
+  if (!ctx.state.listening) {
+    ctx.commit("enableListening");
+    const url = ctx.rootState.conf.webSocketUrl;
+    // todo: close the socket on page reload
+    const ws = new WebSocket(url);
+    ws.addEventListener("message", (event) => {
+      console.log("Receiving: [" + event.data + "]");
+      const en = JSON.parse(event.data);
+      ctx.commit("appendBroadcastEntry", en);
+    });
+    ws.addEventListener("close", function () {
+      console.log("Connection closed");
+    });
+    await fetch("/api/beginBroadcast", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "hello"
+      })
+    })
   }
-}
+};

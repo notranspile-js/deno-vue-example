@@ -23,6 +23,7 @@ export default async () => {
 
     async created() {
       await this.$store.dispatch("fetchConf");
+      this.$store.dispatch("about/listenToBroadcasts");
     },
 
     components: {
@@ -30,9 +31,11 @@ export default async () => {
     },
 
     computed: {
-      config() {
-        return JSON.stringify(this.$store.state.conf);
-      },
+      broadcasts() {
+        const arr = this.$store.state.about.broadcasts.slice();
+        arr.reverse();
+        return arr; 
+      }
     },
 
     methods: {

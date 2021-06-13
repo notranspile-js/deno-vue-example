@@ -14,24 +14,12 @@
  * limitations under the License.
  */
 
-import { dayjs, log } from "../deps.js";
+import { assertEquals } from "../test_deps.js";
 
-export default async (req) => {
-  const logger = log.getLogger();
-
-  if ("POST" === req.method) {
-    const obj = await req.json();
-    logger.info(`Initiating broadcast, message: [${obj.message}]`);
-    const broadcast = () => {
-      if (req.server.closing) {
-        return;
-      }
-      req.server.broadcastWebsocket({
-        message: dayjs().format(),
-      });
-      setTimeout(broadcast, 1000);
-    };
-    broadcast();
-  }
-  return {};
-};
+Deno.test("calls/hello", async () => {
+  const resp = await fetch("http://127.0.0.1:8080/api/hello");
+  const obj = await resp.json();
+  assertEquals(obj, {
+    message: "Hello!"
+  })
+});

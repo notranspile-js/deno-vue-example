@@ -14,24 +14,31 @@
  * limitations under the License.
  */
 
-import { dayjs, log } from "../deps.js";
+import listenToBroadcasts from "./actions/listenToBroadcasts.js";
 
-export default async (req) => {
-  const logger = log.getLogger();
+export default () => {
+  return {
+    namespaced: true,
 
-  if ("POST" === req.method) {
-    const obj = await req.json();
-    logger.info(`Initiating broadcast, message: [${obj.message}]`);
-    const broadcast = () => {
-      if (req.server.closing) {
-        return;
-      }
-      req.server.broadcastWebsocket({
-        message: dayjs().format(),
-      });
-      setTimeout(broadcast, 1000);
-    };
-    broadcast();
-  }
-  return {};
+    state() {
+      return {
+        listening: false,
+        broadcasts: [],
+      };
+    },
+
+    actions: {
+      listenToBroadcasts,
+    },
+
+    mutations: {
+      enableListening: (state) => state.listening = true,
+      appendBroadcastEntry: (state, en) => {
+        if (state.broadcasts.length > 5) {
+          state.broadcasts.shift();
+        }
+        state.broadcasts.push(en);
+      },
+    },
+  };
 };

@@ -28,7 +28,7 @@ export default () => {
       hostname: cs.ipAddress,
     },
     logger: {
-      info: (msg) => logger.debug(`server: ${msg}`),
+      info: (msg) => logger.info(`server: ${msg}`),
       error: (msg) => logger.warning(`server: ${msg}`),
     },
     http: {
@@ -36,7 +36,8 @@ export default () => {
       handler: httpHandler
     },
     files: cs.files,
-    websocket: cs.websocket
+    websocket: cs.websocket,
+    rootRedirectLocation: cs.rootRedirectLocation
   });
 
   logger.info(`Server started, url: [http://${cs.ipAddress}:${cs.tcpPort}/]`);

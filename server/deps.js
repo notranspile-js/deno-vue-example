@@ -11304,7 +11304,7 @@ const __default3 = async (logger, req1, e)=>{
     } catch (_) {
     }
 };
-const __default4 = async (server1, logger, conf, req1)=>{
+const __default4 = async (untrack, server1, logger, conf, req1)=>{
     try {
         logger.info(`HTTP request received, method: [${req1.method}], url: [${req1.url}]`);
         const sreq = new SimpleRequest(server1, req1);
@@ -11312,6 +11312,8 @@ const __default4 = async (server1, logger, conf, req1)=>{
         await sreq.respond(resp);
     } catch (e) {
         __default3(logger, req1, e);
+    } finally{
+        untrack();
     }
 };
 function html(strings, ...values) {
@@ -11500,7 +11502,7 @@ async function respondNoThrow(logger, req1, resp) {
         __default3(logger, req1, e);
     }
 }
-const __default9 = async (logger, conf, req1)=>{
+const __default9 = async (untrack, logger, conf, req1)=>{
     let fsPath = "";
     try {
         const relativeUrl = "/" + req1.url.substring(conf.path.length);
@@ -11527,6 +11529,8 @@ const __default9 = async (logger, conf, req1)=>{
         } else {
             __default3(logger, req1, e);
         }
+    } finally{
+        untrack();
     }
 };
 async function callHandler(logger, handler, sock, ev) {
@@ -11538,21 +11542,18 @@ async function callHandler(logger, handler, sock, ev) {
         throw e;
     }
 }
-async function handleSock(logger, conf, sock) {
-    for await (const ev of sock){
-        if (conf.handler) {
-            await callHandler(logger, conf.handler, sock, ev);
-        }
-        if (isWebSocketCloseEvent(ev)) {
-            break;
-        }
-    }
-}
 async function handleSockNothrow(logger, conf, active, sock) {
     try {
         active.add(sock);
         logger.info(`WebSocket connection opened, id: [${sock.conn.rid}]`);
-        await handleSock(logger, conf, sock);
+        for await (const ev of sock){
+            if (conf.handler) {
+                await callHandler(logger, conf.handler, sock, ev);
+            }
+            if (isWebSocketCloseEvent(ev)) {
+                break;
+            }
+        }
     } catch (_) {
     } finally{
         active.delete(sock);
@@ -11565,26 +11566,47 @@ async function handleSockNothrow(logger, conf, active, sock) {
         }
     }
 }
-const __default10 = async (logger, conf, active, req1)=>{
+const __default10 = async (untrack, logger, conf, active, req1)=>{
+    const { conn: conn1 , r: bufReader1 , w: bufWriter1 , headers  } = req1;
+    let sock = null;
     try {
-        const { conn: conn1 , r: bufReader1 , w: bufWriter1 , headers  } = req1;
-        const sock = await acceptWebSocket({
+        sock = await acceptWebSocket({
             conn: conn1,
             bufReader: bufReader1,
             bufWriter: bufWriter1,
             headers
         });
-        handleSockNothrow(logger, conf, active, sock);
     } catch (e) {
         __default3(logger, req1, e);
+    }
+    try {
+        if (null != sock) {
+            await handleSockNothrow(logger, conf, active, sock);
+        }
+    } finally{
+        untrack();
+    }
+};
+const __default11 = async (logger, req1, location)=>{
+    logger.info(`Redirecting from: [${req1.url}] to [${location}]`);
+    const headers = new Headers();
+    headers.set("location", location);
+    try {
+        await req1.respond({
+            status: 302,
+            headers
+        });
+    } catch (_) {
     }
 };
 class SimpleServer1 {
     conf;
     logger;
     srv;
+    activeHandlers;
     activeWebSockets;
-    done;
+    counter;
+    closing;
     constructor(conf){
         this.conf = conf;
         this.logger = new LoggerWrapper(conf.logger);
@@ -11593,14 +11615,21 @@ class SimpleServer1 {
         } else {
             this.srv = serve(conf.listen);
         }
+        this.activeHandlers = new Map();
         this.activeWebSockets = new Set();
-        this.done = this._iterateRequests();
+        this.counter = 0;
+        this.closing = false;
+        this._iterateRequests();
     }
     async close() {
+        this.closing = true;
         this.srv.close();
-        await this.done;
+        await this._cleanup();
     }
     async broadcastWebsocket(msg) {
+        if (this.closing) {
+            return;
+        }
         let st = "";
         if ("string" !== typeof msg) {
             st = JSON.stringify(msg, null, 4);
@@ -11619,16 +11648,43 @@ class SimpleServer1 {
     }
     async _iterateRequests() {
         for await (const req1 of this.srv){
+            const { id , untrack  } = this._createUntracker();
             if (this.conf.http && req1.url.startsWith(this.conf.http.path)) {
-                __default4(this, this.logger, this.conf.http, req1);
+                const pr = __default4(untrack, this, this.logger, this.conf.http, req1);
+                this.activeHandlers.set(id, pr);
             } else if (this.conf.files && req1.url.startsWith(this.conf.files.path)) {
-                __default9(this.logger, this.conf.files, req1);
+                const pr = __default9(untrack, this.logger, this.conf.files, req1);
+                this.activeHandlers.set(id, pr);
             } else if (this.conf.websocket && req1.url === this.conf.websocket.path) {
-                __default10(this.logger, this.conf.websocket, this.activeWebSockets, req1);
+                const pr = __default10(untrack, this.logger, this.conf.websocket, this.activeWebSockets, req1);
+                this.activeHandlers.set(id, pr);
+            } else if ("/" === req1.url && this.conf.rootRedirectLocation) {
+                __default11(this.logger, req1, this.conf.rootRedirectLocation);
             } else {
                 __default8(this.logger, req1);
             }
         }
+    }
+    async _cleanup() {
+        const promises = [];
+        for (const [_, pr] of this.activeHandlers.entries()){
+            promises.push(pr);
+        }
+        try {
+            await Promise.allSettled(promises);
+        } catch (_1) {
+        }
+    }
+    _createUntracker() {
+        const id = this.counter++;
+        const activeHandlers = this.activeHandlers;
+        const untrack = ()=>{
+            activeHandlers.delete(id);
+        };
+        return {
+            id,
+            untrack
+        };
     }
 }
 export { existsSync1 as existsSync };

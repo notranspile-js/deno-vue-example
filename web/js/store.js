@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-import landingStore from "./modules/landing/landingStore.js";
 import fetchConf from "./common/actions/fetchConf.js";
+import aboutStore from "./modules/about/aboutStore.js";
+import landingStore from "./modules/landing/landingStore.js";
 
 export default async () => {
   return {
     strict: true,
 
     modules: {
+      about: await aboutStore(),
       landing: await landingStore(),
     },
 

@@ -57,5 +57,4 @@ import yargs from "https://deno.land/x/yargs@v17.0.1-deno/deno.ts";
 export { yargs };
 
 // deno-simple-server
-//export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.0/mod.ts";
-export { SimpleServer } from "file:///home/alex/projects/notranspile/deno-simple-server/mod.ts";
+export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.0/mod.ts";

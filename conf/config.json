@@ -14,11 +14,12 @@
       "path": "/web/",
       "rootDirectory": "{{appdir}}/web",
       "dirListingEnabled": true
-    }
+    },
+    "rootRedirectLocation": "/web/index.html"
   },
 
   "web": {
-    "someWebParameter": 42
+    "webSocketUrl": "ws://127.0.0.1:8080/websocket/"
   },
 
   "logging": {

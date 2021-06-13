@@ -23,14 +23,12 @@ export default async () => {
   await log.setup({
     handlers: {
       console: new log.handlers.ConsoleHandler(lc.console.level, {
-        level: lc.console.level,
         formatter: (rec) => {
           return `[${rec.levelName}] ${rec.msg}`
         }
       }),
 
       file: new log.handlers.RotatingFileHandler(lc.file.level, {
-        level: lc.file.level,
         maxBytes: lc.file.maxBytes,
         maxBackupCount: lc.file.maxBackupCount,
         filename: lc.file.filename,

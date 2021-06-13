@@ -19,7 +19,19 @@
 
 <div class="row mt-4">
   <div class="col">
-    Web config: {{config}}
+    Messages received over WeSocket:
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col">
+    <ul class="list-group">
+      <li
+        class="list-group-item" 
+        v-for="en in broadcasts">
+        {{en.message}}
+      </li>
+    </ul>
   </div>
 </div>
 

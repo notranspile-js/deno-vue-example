@@ -14,13 +14,20 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
+import { log, readLines } from "../deps.js";
 import startServer from "./startServer.js";
 
 export default async () => {
   const logger = log.getLogger();
 
   const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
+  logger.info("Press Enter to stop");
+
+  for await (const _ of readLines(Deno.stdin)) {
+    break;
+  }
+
+  logger.info("Shutting down ...")
+  await server.close();
+  logger.info("Shutdown complete")
 };
