@@ -1,0 +1,56 @@
+<!--
+ * Copyright 2021, alex at staticlibs.net
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
+<example-header label="Landing Page" description="Some detailed description about Landing Page">
+</example-header>
+
+<div class="row mt-4">
+  <div class="col-2 text-end text-secondary align-self-center font-weight-bold">
+    Counter
+  </div>
+  <div class="col-4">
+    <input type="text" class="form-control" disabled v-bind:value="counter">
+  </div>
+</div>
+<div class="row mt-3">
+  <div class="col-2 text-end text-secondary align-self-center font-weight-bold">
+    Persistent Input Field
+  </div>
+  <div class="col-4">
+    <input type="text" class="form-control" v-model="anotherField">
+  </div>
+</div>
+<div class="row mt-3">
+  <div class="col-2 text-end text-secondary align-self-center font-weight-bold">
+    Transient Input Field
+  </div>
+  <div class="col-4">
+    <input type="text" class="form-control">
+  </div>
+</div>
+
+<hr class="mt-4">
+
+<div class="row">
+  <div class="col">
+    <button type="button" class="btn btn-lg btn-secondary" v-on:click="toAbout">
+      Go to About Page
+    </button>
+    <button type="button" class="btn btn-lg btn-secondary mx-2" v-on:click="incrementCounter">
+      Increment Counter
+    </button>
+  </div>
+</div>

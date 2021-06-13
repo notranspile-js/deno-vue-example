@@ -22,15 +22,16 @@ if (import.meta.main) {
     .scriptName("-")
     .usage("Usage: deno run -A main.js <command> [options]")
     .command("update-deps", "Update dependencies bundle")
-    .option("f", {
-      alias: "file",
+    .command("launch-system-browser", "Launch system browser")
+    .command("launch-winscm-service", "Entry point for Windows Service Control Manager")
+    .option("url", {
       demandOption: false,
-      default: "/etc/passwd",
-      describe: "x marks the spot",
+      default: "index.html",
+      describe: "Relative URL to open in system browser",
       type: "string",
       nargs: 1,
     })
-    .example("count -f foo.js", "count the lines in the given file")
+    .example("launch-system-browser --url docs/index.html", "Open system browser with the relative URL")
     .help("h")
     .alias("h", "help");
 
@@ -46,5 +47,5 @@ if (import.meta.main) {
 
   const cmd = args._.length > 0 ? args._[0] : "";
 
-  await launch(cmd, args);
+  await launch(cmd, args, parser);
 }

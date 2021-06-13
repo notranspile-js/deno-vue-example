@@ -32,6 +32,9 @@
 export { existsSync } from "https://deno.land/std@0.97.0/fs/exists.ts";
 
 // @ts-ignore extension
+export { readLines } from "https://deno.land/std@0.97.0/io/bufio.ts";
+
+// @ts-ignore extension
 import * as log from "https://deno.land/std@0.97.0/log/mod.ts";
 export { log };
 
@@ -42,6 +45,7 @@ export {
   join,
 } from "https://deno.land/std@0.97.0/path/mod.ts";
 
+// dayjs
 //import dayjs from "https://deno.land/x/dayjs@v1.10.5/src/index.js";
 import dayjs from "https://cdn.skypack.dev/dayjs@1.10.5";
 import "https://cdn.skypack.dev/dayjs@1.10.5/locale/en";
@@ -51,3 +55,7 @@ export { dayjs };
 // @ts-ignore extension
 import yargs from "https://deno.land/x/yargs@v17.0.1-deno/deno.ts";
 export { yargs };
+
+// deno-simple-server
+//export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.0/mod.ts";
+export { SimpleServer } from "file:///home/alex/projects/notranspile/deno-simple-server/mod.ts";

@@ -17,15 +17,27 @@
 import updateDeps from "../service/updateDeps.js";
 import createDirs from "./createDirs.js";
 import launchDefault from "./launchDefault.js";
+import launchSystemBrowser from "./launchSystemBrowser.js";
+import launchWinscmService from "./launchWinscmService.js";
 import setupLogging from "./setupLogging.js";
 
-export default async (cmd, args) => {
+export default async (cmd, args, parser) => {
   await createDirs();
   await setupLogging();
 
-  if ("update-deps" === cmd) {
-    await updateDeps();
-  } else {
-    await launchDefault();
+  switch (cmd) {
+    case "update-deps": return await updateDeps();
+    case "launch-system-browser": return await launchSystemBrowser(args.url);
+    case "launch-winscm-service": return await launchWinscmService();
+    default: {
+      if (cmd.length > 0) {
+        console.log(
+          `Error: invalid unsupprted command specified, name: [${cmd}]\n`,
+        );
+        console.log(await parser.getHelp());
+        Deno.exit(1);
+      }
+      return await launchDefault();
+    }
   }
 };

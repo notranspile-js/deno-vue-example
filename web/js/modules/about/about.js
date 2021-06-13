@@ -14,13 +14,31 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
+import fetchTemplate from "../../common/utils/fetchTemplate.js";
+import Header from "../../components/header/Header.js";
 
 export default async () => {
-  const logger = log.getLogger();
+  return {
+    template: await fetchTemplate(import.meta.url),
 
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
+    async created() {
+      await this.$store.dispatch("fetchConf");
+    },
+
+    components: {
+      "example-header": new (await Header())(),
+    },
+
+    computed: {
+      config() {
+        return JSON.stringify(this.$store.state.conf);
+      },
+    },
+
+    methods: {
+      toLanding() {
+        this.$router.push("/landing");
+      },
+    },
+  };
 };

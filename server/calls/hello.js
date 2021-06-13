@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
-
-export default async () => {
-  const logger = log.getLogger();
-
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
+export default async (req) => {
+  if ("POST" === req.method) {
+    const input = await req.json();
+  }
+  return {
+    json: {
+      message: "Hello!"
+    }
+  };
 };

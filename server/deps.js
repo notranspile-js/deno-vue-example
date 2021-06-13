@@ -207,6 +207,19 @@ function existsSync1(filePath) {
         throw err;
     }
 }
+function concat(...buf) {
+    let length = 0;
+    for (const b of buf){
+        length += b.length;
+    }
+    const output = new Uint8Array(length);
+    let index = 0;
+    for (const b1 of buf){
+        output.set(b1, index);
+        index += b1.length;
+    }
+    return output;
+}
 function copy(src, dst, off = 0) {
     off = Math.max(0, Math.min(off, dst.byteLength));
     const dstBytesAvailable = dst.byteLength - off;
@@ -225,6 +238,125 @@ class DenoStdInternalError extends Error {
 function assert(expr, msg = "") {
     if (!expr) {
         throw new DenoStdInternalError(msg);
+    }
+}
+class BytesList {
+    len = 0;
+    chunks = [];
+    constructor(){
+    }
+    size() {
+        return this.len;
+    }
+    add(value, start = 0, end = value.byteLength) {
+        if (value.byteLength === 0 || end - start === 0) {
+            return;
+        }
+        checkRange(start, end, value.byteLength);
+        this.chunks.push({
+            value,
+            end,
+            start,
+            offset: this.len
+        });
+        this.len += end - start;
+    }
+    shift(n) {
+        if (n === 0) {
+            return;
+        }
+        if (this.len <= n) {
+            this.chunks = [];
+            this.len = 0;
+            return;
+        }
+        const idx = this.getChunkIndex(n);
+        this.chunks.splice(0, idx);
+        const [chunk] = this.chunks;
+        if (chunk) {
+            const diff = n - chunk.offset;
+            chunk.start += diff;
+        }
+        let offset = 0;
+        for (const chunk1 of this.chunks){
+            chunk1.offset = offset;
+            offset += chunk1.end - chunk1.start;
+        }
+        this.len = offset;
+    }
+    getChunkIndex(pos) {
+        let max = this.chunks.length;
+        let min = 0;
+        while(true){
+            const i = min + Math.floor((max - min) / 2);
+            if (i < 0 || this.chunks.length <= i) {
+                return -1;
+            }
+            const { offset , start , end  } = this.chunks[i];
+            const len = end - start;
+            if (offset <= pos && pos < offset + len) {
+                return i;
+            } else if (offset + len <= pos) {
+                min = i + 1;
+            } else {
+                max = i - 1;
+            }
+        }
+    }
+    get(i) {
+        if (i < 0 || this.len <= i) {
+            throw new Error("out of range");
+        }
+        const idx = this.getChunkIndex(i);
+        const { value , offset , start  } = this.chunks[idx];
+        return value[start + i - offset];
+    }
+    *iterator(start = 0) {
+        const startIdx = this.getChunkIndex(start);
+        if (startIdx < 0) return;
+        const first = this.chunks[startIdx];
+        let firstOffset = start - first.offset;
+        for(let i = startIdx; i < this.chunks.length; i++){
+            const chunk = this.chunks[i];
+            for(let j = chunk.start + firstOffset; j < chunk.end; j++){
+                yield chunk.value[j];
+            }
+            firstOffset = 0;
+        }
+    }
+    slice(start, end = this.len) {
+        if (end === start) {
+            return new Uint8Array();
+        }
+        checkRange(start, end, this.len);
+        const result = new Uint8Array(end - start);
+        const startIdx = this.getChunkIndex(start);
+        const endIdx = this.getChunkIndex(end - 1);
+        let written = 0;
+        for(let i = startIdx; i < endIdx; i++){
+            const chunk = this.chunks[i];
+            const len = chunk.end - chunk.start;
+            result.set(chunk.value.subarray(chunk.start, chunk.end), written);
+            written += len;
+        }
+        const last = this.chunks[endIdx];
+        const rest = end - start - written;
+        result.set(last.value.subarray(last.start, last.start + rest), written);
+        return result;
+    }
+    concat() {
+        const result = new Uint8Array(this.len);
+        let sum = 0;
+        for (const { value , start , end  } of this.chunks){
+            result.set(value.subarray(start, end), sum);
+            sum += end - start;
+        }
+        return result;
+    }
+}
+function checkRange(start, end, len) {
+    if (start < 0 || len < start || end < 0 || len < end || end < start) {
+        throw new Error("invalid range");
     }
 }
 const MIN_READ = 32 * 1024;
@@ -374,6 +506,12 @@ class AssertionError extends Error {
         this.name = "AssertionError";
     }
 }
+const DEFAULT_BUFFER_SIZE = 32 * 1024;
+async function readAll(r) {
+    const buf = new Buffer();
+    await buf.readFrom(r);
+    return buf.bytes();
+}
 async function writeAll(w, arr) {
     let nwritten = 0;
     while(nwritten < arr.length){
@@ -384,6 +522,17 @@ function writeAllSync(w, arr) {
     let nwritten = 0;
     while(nwritten < arr.length){
         nwritten += w.writeSync(arr.subarray(nwritten));
+    }
+}
+async function* iter(r, options3) {
+    const bufSize = options3?.bufSize ?? DEFAULT_BUFFER_SIZE;
+    const b = new Uint8Array(bufSize);
+    while(true){
+        const result = await r.read(b);
+        if (result === null) {
+            break;
+        }
+        yield b.subarray(0, result);
     }
 }
 const DEFAULT_BUF_SIZE = 4096;
@@ -742,6 +891,82 @@ class BufWriterSync extends AbstractBufBase {
         this.usedBufferBytes += numBytesWritten;
         totalBytesWritten += numBytesWritten;
         return totalBytesWritten;
+    }
+}
+function createLPS(pat) {
+    const lps = new Uint8Array(pat.length);
+    lps[0] = 0;
+    let prefixEnd = 0;
+    let i = 1;
+    while(i < lps.length){
+        if (pat[i] == pat[prefixEnd]) {
+            prefixEnd++;
+            lps[i] = prefixEnd;
+            i++;
+        } else if (prefixEnd === 0) {
+            lps[i] = 0;
+            i++;
+        } else {
+            prefixEnd = lps[prefixEnd - 1];
+        }
+    }
+    return lps;
+}
+async function* readDelim(reader, delim) {
+    const delimLen = delim.length;
+    const delimLPS = createLPS(delim);
+    const chunks = new BytesList();
+    const bufSize = Math.max(1024, delimLen + 1);
+    let inspectIndex = 0;
+    let matchIndex = 0;
+    while(true){
+        const inspectArr = new Uint8Array(bufSize);
+        const result = await reader.read(inspectArr);
+        if (result === null) {
+            yield chunks.concat();
+            return;
+        } else if (result < 0) {
+            return;
+        }
+        chunks.add(inspectArr, 0, result);
+        let localIndex = 0;
+        while(inspectIndex < chunks.size()){
+            if (inspectArr[localIndex] === delim[matchIndex]) {
+                inspectIndex++;
+                localIndex++;
+                matchIndex++;
+                if (matchIndex === delimLen) {
+                    const matchEnd = inspectIndex - delimLen;
+                    const readyBytes = chunks.slice(0, matchEnd);
+                    yield readyBytes;
+                    chunks.shift(inspectIndex);
+                    inspectIndex = 0;
+                    matchIndex = 0;
+                }
+            } else {
+                if (matchIndex === 0) {
+                    inspectIndex++;
+                    localIndex++;
+                } else {
+                    matchIndex = delimLPS[matchIndex - 1];
+                }
+            }
+        }
+    }
+}
+async function* readStringDelim(reader, delim) {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    for await (const chunk of readDelim(reader, encoder.encode(delim))){
+        yield decoder.decode(chunk);
+    }
+}
+async function* readLines1(reader) {
+    for await (let chunk of readStringDelim(reader, "\n")){
+        if (chunk.endsWith("\r")) {
+            chunk = chunk.slice(0, -1);
+        }
+        yield chunk;
     }
 }
 const DEFAULT_FORMATTER = "{levelName} {msg}";
@@ -9281,9 +9506,2135 @@ const mod4 = function() {
     };
 }();
 const path2 = isWindows1 ? mod3 : mod4;
+const posix = mod4;
 const { basename: basename5 , delimiter: delimiter5 , dirname: dirname5 , extname: extname5 , format: format7 , fromFileUrl: fromFileUrl5 , isAbsolute: isAbsolute5 , join: join5 , normalize: normalize5 , parse: parse5 , relative: relative5 , resolve: resolve5 , sep: sep5 , toFileUrl: toFileUrl5 , toNamespacedPath: toNamespacedPath5 ,  } = path2;
+const CHAR_SPACE = " ".charCodeAt(0);
+const CHAR_TAB = "\t".charCodeAt(0);
+const CHAR_COLON = ":".charCodeAt(0);
+const WHITESPACES = [
+    CHAR_SPACE,
+    CHAR_TAB
+];
+const decoder = new TextDecoder();
+const invalidHeaderCharRegex = /[^\t\x20-\x7e\x80-\xff]/g;
+function str(buf) {
+    return !buf ? "" : decoder.decode(buf);
+}
+class TextProtoReader {
+    r;
+    constructor(r1){
+        this.r = r1;
+    }
+    async readLine() {
+        const s = await this.readLineSlice();
+        return s === null ? null : str(s);
+    }
+    async readMIMEHeader() {
+        const m = new Headers();
+        let line;
+        let buf = await this.r.peek(1);
+        if (buf === null) {
+            return null;
+        } else if (WHITESPACES.includes(buf[0])) {
+            line = await this.readLineSlice();
+        }
+        buf = await this.r.peek(1);
+        if (buf === null) {
+            throw new Deno.errors.UnexpectedEof();
+        } else if (WHITESPACES.includes(buf[0])) {
+            throw new Deno.errors.InvalidData(`malformed MIME header initial line: ${str(line)}`);
+        }
+        while(true){
+            const kv = await this.readLineSlice();
+            if (kv === null) throw new Deno.errors.UnexpectedEof();
+            if (kv.byteLength === 0) return m;
+            let i = kv.indexOf(CHAR_COLON);
+            if (i < 0) {
+                throw new Deno.errors.InvalidData(`malformed MIME header line: ${str(kv)}`);
+            }
+            const key = str(kv.subarray(0, i));
+            if (key == "") {
+                continue;
+            }
+            i++;
+            while(i < kv.byteLength && WHITESPACES.includes(kv[i])){
+                i++;
+            }
+            const value = str(kv.subarray(i)).replace(invalidHeaderCharRegex, encodeURI);
+            try {
+                m.append(key, value);
+            } catch  {
+            }
+        }
+    }
+    async readLineSlice() {
+        let line = new Uint8Array(0);
+        let r1 = null;
+        do {
+            r1 = await this.r.readLine();
+            if (r1 !== null && this.skipSpace(r1.line) !== 0) {
+                line = concat(line, r1.line);
+            }
+        }while (r1 !== null && r1.more)
+        return r1 === null ? null : line;
+    }
+    skipSpace(l) {
+        let n = 0;
+        for (const val of l){
+            if (!WHITESPACES.includes(val)) {
+                n++;
+            }
+        }
+        return n;
+    }
+}
+var Status;
+(function(Status1) {
+    Status1[Status1["Continue"] = 100] = "Continue";
+    Status1[Status1["SwitchingProtocols"] = 101] = "SwitchingProtocols";
+    Status1[Status1["Processing"] = 102] = "Processing";
+    Status1[Status1["EarlyHints"] = 103] = "EarlyHints";
+    Status1[Status1["OK"] = 200] = "OK";
+    Status1[Status1["Created"] = 201] = "Created";
+    Status1[Status1["Accepted"] = 202] = "Accepted";
+    Status1[Status1["NonAuthoritativeInfo"] = 203] = "NonAuthoritativeInfo";
+    Status1[Status1["NoContent"] = 204] = "NoContent";
+    Status1[Status1["ResetContent"] = 205] = "ResetContent";
+    Status1[Status1["PartialContent"] = 206] = "PartialContent";
+    Status1[Status1["MultiStatus"] = 207] = "MultiStatus";
+    Status1[Status1["AlreadyReported"] = 208] = "AlreadyReported";
+    Status1[Status1["IMUsed"] = 226] = "IMUsed";
+    Status1[Status1["MultipleChoices"] = 300] = "MultipleChoices";
+    Status1[Status1["MovedPermanently"] = 301] = "MovedPermanently";
+    Status1[Status1["Found"] = 302] = "Found";
+    Status1[Status1["SeeOther"] = 303] = "SeeOther";
+    Status1[Status1["NotModified"] = 304] = "NotModified";
+    Status1[Status1["UseProxy"] = 305] = "UseProxy";
+    Status1[Status1["TemporaryRedirect"] = 307] = "TemporaryRedirect";
+    Status1[Status1["PermanentRedirect"] = 308] = "PermanentRedirect";
+    Status1[Status1["BadRequest"] = 400] = "BadRequest";
+    Status1[Status1["Unauthorized"] = 401] = "Unauthorized";
+    Status1[Status1["PaymentRequired"] = 402] = "PaymentRequired";
+    Status1[Status1["Forbidden"] = 403] = "Forbidden";
+    Status1[Status1["NotFound"] = 404] = "NotFound";
+    Status1[Status1["MethodNotAllowed"] = 405] = "MethodNotAllowed";
+    Status1[Status1["NotAcceptable"] = 406] = "NotAcceptable";
+    Status1[Status1["ProxyAuthRequired"] = 407] = "ProxyAuthRequired";
+    Status1[Status1["RequestTimeout"] = 408] = "RequestTimeout";
+    Status1[Status1["Conflict"] = 409] = "Conflict";
+    Status1[Status1["Gone"] = 410] = "Gone";
+    Status1[Status1["LengthRequired"] = 411] = "LengthRequired";
+    Status1[Status1["PreconditionFailed"] = 412] = "PreconditionFailed";
+    Status1[Status1["RequestEntityTooLarge"] = 413] = "RequestEntityTooLarge";
+    Status1[Status1["RequestURITooLong"] = 414] = "RequestURITooLong";
+    Status1[Status1["UnsupportedMediaType"] = 415] = "UnsupportedMediaType";
+    Status1[Status1["RequestedRangeNotSatisfiable"] = 416] = "RequestedRangeNotSatisfiable";
+    Status1[Status1["ExpectationFailed"] = 417] = "ExpectationFailed";
+    Status1[Status1["Teapot"] = 418] = "Teapot";
+    Status1[Status1["MisdirectedRequest"] = 421] = "MisdirectedRequest";
+    Status1[Status1["UnprocessableEntity"] = 422] = "UnprocessableEntity";
+    Status1[Status1["Locked"] = 423] = "Locked";
+    Status1[Status1["FailedDependency"] = 424] = "FailedDependency";
+    Status1[Status1["TooEarly"] = 425] = "TooEarly";
+    Status1[Status1["UpgradeRequired"] = 426] = "UpgradeRequired";
+    Status1[Status1["PreconditionRequired"] = 428] = "PreconditionRequired";
+    Status1[Status1["TooManyRequests"] = 429] = "TooManyRequests";
+    Status1[Status1["RequestHeaderFieldsTooLarge"] = 431] = "RequestHeaderFieldsTooLarge";
+    Status1[Status1["UnavailableForLegalReasons"] = 451] = "UnavailableForLegalReasons";
+    Status1[Status1["InternalServerError"] = 500] = "InternalServerError";
+    Status1[Status1["NotImplemented"] = 501] = "NotImplemented";
+    Status1[Status1["BadGateway"] = 502] = "BadGateway";
+    Status1[Status1["ServiceUnavailable"] = 503] = "ServiceUnavailable";
+    Status1[Status1["GatewayTimeout"] = 504] = "GatewayTimeout";
+    Status1[Status1["HTTPVersionNotSupported"] = 505] = "HTTPVersionNotSupported";
+    Status1[Status1["VariantAlsoNegotiates"] = 506] = "VariantAlsoNegotiates";
+    Status1[Status1["InsufficientStorage"] = 507] = "InsufficientStorage";
+    Status1[Status1["LoopDetected"] = 508] = "LoopDetected";
+    Status1[Status1["NotExtended"] = 510] = "NotExtended";
+    Status1[Status1["NetworkAuthenticationRequired"] = 511] = "NetworkAuthenticationRequired";
+})(Status || (Status = {
+}));
+const STATUS_TEXT = new Map([
+    [
+        Status.Continue,
+        "Continue"
+    ],
+    [
+        Status.SwitchingProtocols,
+        "Switching Protocols"
+    ],
+    [
+        Status.Processing,
+        "Processing"
+    ],
+    [
+        Status.EarlyHints,
+        "Early Hints"
+    ],
+    [
+        Status.OK,
+        "OK"
+    ],
+    [
+        Status.Created,
+        "Created"
+    ],
+    [
+        Status.Accepted,
+        "Accepted"
+    ],
+    [
+        Status.NonAuthoritativeInfo,
+        "Non-Authoritative Information"
+    ],
+    [
+        Status.NoContent,
+        "No Content"
+    ],
+    [
+        Status.ResetContent,
+        "Reset Content"
+    ],
+    [
+        Status.PartialContent,
+        "Partial Content"
+    ],
+    [
+        Status.MultiStatus,
+        "Multi-Status"
+    ],
+    [
+        Status.AlreadyReported,
+        "Already Reported"
+    ],
+    [
+        Status.IMUsed,
+        "IM Used"
+    ],
+    [
+        Status.MultipleChoices,
+        "Multiple Choices"
+    ],
+    [
+        Status.MovedPermanently,
+        "Moved Permanently"
+    ],
+    [
+        Status.Found,
+        "Found"
+    ],
+    [
+        Status.SeeOther,
+        "See Other"
+    ],
+    [
+        Status.NotModified,
+        "Not Modified"
+    ],
+    [
+        Status.UseProxy,
+        "Use Proxy"
+    ],
+    [
+        Status.TemporaryRedirect,
+        "Temporary Redirect"
+    ],
+    [
+        Status.PermanentRedirect,
+        "Permanent Redirect"
+    ],
+    [
+        Status.BadRequest,
+        "Bad Request"
+    ],
+    [
+        Status.Unauthorized,
+        "Unauthorized"
+    ],
+    [
+        Status.PaymentRequired,
+        "Payment Required"
+    ],
+    [
+        Status.Forbidden,
+        "Forbidden"
+    ],
+    [
+        Status.NotFound,
+        "Not Found"
+    ],
+    [
+        Status.MethodNotAllowed,
+        "Method Not Allowed"
+    ],
+    [
+        Status.NotAcceptable,
+        "Not Acceptable"
+    ],
+    [
+        Status.ProxyAuthRequired,
+        "Proxy Authentication Required"
+    ],
+    [
+        Status.RequestTimeout,
+        "Request Timeout"
+    ],
+    [
+        Status.Conflict,
+        "Conflict"
+    ],
+    [
+        Status.Gone,
+        "Gone"
+    ],
+    [
+        Status.LengthRequired,
+        "Length Required"
+    ],
+    [
+        Status.PreconditionFailed,
+        "Precondition Failed"
+    ],
+    [
+        Status.RequestEntityTooLarge,
+        "Request Entity Too Large"
+    ],
+    [
+        Status.RequestURITooLong,
+        "Request URI Too Long"
+    ],
+    [
+        Status.UnsupportedMediaType,
+        "Unsupported Media Type"
+    ],
+    [
+        Status.RequestedRangeNotSatisfiable,
+        "Requested Range Not Satisfiable"
+    ],
+    [
+        Status.ExpectationFailed,
+        "Expectation Failed"
+    ],
+    [
+        Status.Teapot,
+        "I'm a teapot"
+    ],
+    [
+        Status.MisdirectedRequest,
+        "Misdirected Request"
+    ],
+    [
+        Status.UnprocessableEntity,
+        "Unprocessable Entity"
+    ],
+    [
+        Status.Locked,
+        "Locked"
+    ],
+    [
+        Status.FailedDependency,
+        "Failed Dependency"
+    ],
+    [
+        Status.TooEarly,
+        "Too Early"
+    ],
+    [
+        Status.UpgradeRequired,
+        "Upgrade Required"
+    ],
+    [
+        Status.PreconditionRequired,
+        "Precondition Required"
+    ],
+    [
+        Status.TooManyRequests,
+        "Too Many Requests"
+    ],
+    [
+        Status.RequestHeaderFieldsTooLarge,
+        "Request Header Fields Too Large"
+    ],
+    [
+        Status.UnavailableForLegalReasons,
+        "Unavailable For Legal Reasons"
+    ],
+    [
+        Status.InternalServerError,
+        "Internal Server Error"
+    ],
+    [
+        Status.NotImplemented,
+        "Not Implemented"
+    ],
+    [
+        Status.BadGateway,
+        "Bad Gateway"
+    ],
+    [
+        Status.ServiceUnavailable,
+        "Service Unavailable"
+    ],
+    [
+        Status.GatewayTimeout,
+        "Gateway Timeout"
+    ],
+    [
+        Status.HTTPVersionNotSupported,
+        "HTTP Version Not Supported"
+    ],
+    [
+        Status.VariantAlsoNegotiates,
+        "Variant Also Negotiates"
+    ],
+    [
+        Status.InsufficientStorage,
+        "Insufficient Storage"
+    ],
+    [
+        Status.LoopDetected,
+        "Loop Detected"
+    ],
+    [
+        Status.NotExtended,
+        "Not Extended"
+    ],
+    [
+        Status.NetworkAuthenticationRequired,
+        "Network Authentication Required"
+    ], 
+]);
+function deferred() {
+    let methods;
+    const promise = new Promise((resolve6, reject)=>{
+        methods = {
+            resolve: resolve6,
+            reject
+        };
+    });
+    return Object.assign(promise, methods);
+}
+class MuxAsyncIterator {
+    iteratorCount = 0;
+    yields = [];
+    throws = [];
+    signal = deferred();
+    add(iterator) {
+        ++this.iteratorCount;
+        this.callIteratorNext(iterator);
+    }
+    async callIteratorNext(iterator) {
+        try {
+            const { value , done  } = await iterator.next();
+            if (done) {
+                --this.iteratorCount;
+            } else {
+                this.yields.push({
+                    iterator,
+                    value
+                });
+            }
+        } catch (e) {
+            this.throws.push(e);
+        }
+        this.signal.resolve();
+    }
+    async *iterate() {
+        while(this.iteratorCount > 0){
+            await this.signal;
+            for(let i = 0; i < this.yields.length; i++){
+                const { iterator , value  } = this.yields[i];
+                yield value;
+                this.callIteratorNext(iterator);
+            }
+            if (this.throws.length) {
+                for (const e of this.throws){
+                    throw e;
+                }
+                this.throws.length = 0;
+            }
+            this.yields.length = 0;
+            this.signal = deferred();
+        }
+    }
+    [Symbol.asyncIterator]() {
+        return this.iterate();
+    }
+}
+const encoder = new TextEncoder();
+function emptyReader() {
+    return {
+        read (_) {
+            return Promise.resolve(null);
+        }
+    };
+}
+function bodyReader(contentLength, r1) {
+    let totalRead = 0;
+    let finished = false;
+    async function read(buf) {
+        if (finished) return null;
+        let result;
+        const remaining = contentLength - totalRead;
+        if (remaining >= buf.byteLength) {
+            result = await r1.read(buf);
+        } else {
+            const readBuf = buf.subarray(0, remaining);
+            result = await r1.read(readBuf);
+        }
+        if (result !== null) {
+            totalRead += result;
+        }
+        finished = totalRead === contentLength;
+        return result;
+    }
+    return {
+        read
+    };
+}
+function chunkedBodyReader(h, r1) {
+    const tp = new TextProtoReader(r1);
+    let finished = false;
+    const chunks = [];
+    async function read(buf) {
+        if (finished) return null;
+        const [chunk] = chunks;
+        if (chunk) {
+            const chunkRemaining = chunk.data.byteLength - chunk.offset;
+            const readLength = Math.min(chunkRemaining, buf.byteLength);
+            for(let i = 0; i < readLength; i++){
+                buf[i] = chunk.data[chunk.offset + i];
+            }
+            chunk.offset += readLength;
+            if (chunk.offset === chunk.data.byteLength) {
+                chunks.shift();
+                if (await tp.readLine() === null) {
+                    throw new Deno.errors.UnexpectedEof();
+                }
+            }
+            return readLength;
+        }
+        const line = await tp.readLine();
+        if (line === null) throw new Deno.errors.UnexpectedEof();
+        const [chunkSizeString] = line.split(";");
+        const chunkSize = parseInt(chunkSizeString, 16);
+        if (Number.isNaN(chunkSize) || chunkSize < 0) {
+            throw new Deno.errors.InvalidData("Invalid chunk size");
+        }
+        if (chunkSize > 0) {
+            if (chunkSize > buf.byteLength) {
+                let eof = await r1.readFull(buf);
+                if (eof === null) {
+                    throw new Deno.errors.UnexpectedEof();
+                }
+                const restChunk = new Uint8Array(chunkSize - buf.byteLength);
+                eof = await r1.readFull(restChunk);
+                if (eof === null) {
+                    throw new Deno.errors.UnexpectedEof();
+                } else {
+                    chunks.push({
+                        offset: 0,
+                        data: restChunk
+                    });
+                }
+                return buf.byteLength;
+            } else {
+                const bufToFill = buf.subarray(0, chunkSize);
+                const eof = await r1.readFull(bufToFill);
+                if (eof === null) {
+                    throw new Deno.errors.UnexpectedEof();
+                }
+                if (await tp.readLine() === null) {
+                    throw new Deno.errors.UnexpectedEof();
+                }
+                return chunkSize;
+            }
+        } else {
+            assert(chunkSize === 0);
+            if (await r1.readLine() === null) {
+                throw new Deno.errors.UnexpectedEof();
+            }
+            await readTrailers(h, r1);
+            finished = true;
+            return null;
+        }
+    }
+    return {
+        read
+    };
+}
+function isProhibidedForTrailer(key) {
+    const s = new Set([
+        "transfer-encoding",
+        "content-length",
+        "trailer"
+    ]);
+    return s.has(key.toLowerCase());
+}
+async function readTrailers(headers, r1) {
+    const trailers = parseTrailer(headers.get("trailer"));
+    if (trailers == null) return;
+    const trailerNames = [
+        ...trailers.keys()
+    ];
+    const tp = new TextProtoReader(r1);
+    const result = await tp.readMIMEHeader();
+    if (result == null) {
+        throw new Deno.errors.InvalidData("Missing trailer header.");
+    }
+    const undeclared = [
+        ...result.keys()
+    ].filter((k)=>!trailerNames.includes(k)
+    );
+    if (undeclared.length > 0) {
+        throw new Deno.errors.InvalidData(`Undeclared trailers: ${Deno.inspect(undeclared)}.`);
+    }
+    for (const [k, v] of result){
+        headers.append(k, v);
+    }
+    const missingTrailers = trailerNames.filter((k1)=>!result.has(k1)
+    );
+    if (missingTrailers.length > 0) {
+        throw new Deno.errors.InvalidData(`Missing trailers: ${Deno.inspect(missingTrailers)}.`);
+    }
+    headers.delete("trailer");
+}
+function parseTrailer(field) {
+    if (field == null) {
+        return undefined;
+    }
+    const trailerNames = field.split(",").map((v)=>v.trim().toLowerCase()
+    );
+    if (trailerNames.length === 0) {
+        throw new Deno.errors.InvalidData("Empty trailer header.");
+    }
+    const prohibited = trailerNames.filter((k)=>isProhibidedForTrailer(k)
+    );
+    if (prohibited.length > 0) {
+        throw new Deno.errors.InvalidData(`Prohibited trailer names: ${Deno.inspect(prohibited)}.`);
+    }
+    return new Headers(trailerNames.map((key)=>[
+            key,
+            ""
+        ]
+    ));
+}
+async function writeChunkedBody(w, r1) {
+    for await (const chunk of iter(r1)){
+        if (chunk.byteLength <= 0) continue;
+        const start = encoder.encode(`${chunk.byteLength.toString(16)}\r\n`);
+        const end = encoder.encode("\r\n");
+        await w.write(start);
+        await w.write(chunk);
+        await w.write(end);
+        await w.flush();
+    }
+    const endChunk = encoder.encode("0\r\n\r\n");
+    await w.write(endChunk);
+}
+async function writeTrailers(w, headers, trailers) {
+    const trailer = headers.get("trailer");
+    if (trailer === null) {
+        throw new TypeError("Missing trailer header.");
+    }
+    const transferEncoding = headers.get("transfer-encoding");
+    if (transferEncoding === null || !transferEncoding.match(/^chunked/)) {
+        throw new TypeError(`Trailers are only allowed for "transfer-encoding: chunked", got "transfer-encoding: ${transferEncoding}".`);
+    }
+    const writer3 = BufWriter.create(w);
+    const trailerNames = trailer.split(",").map((s)=>s.trim().toLowerCase()
+    );
+    const prohibitedTrailers = trailerNames.filter((k)=>isProhibidedForTrailer(k)
+    );
+    if (prohibitedTrailers.length > 0) {
+        throw new TypeError(`Prohibited trailer names: ${Deno.inspect(prohibitedTrailers)}.`);
+    }
+    const undeclared = [
+        ...trailers.keys()
+    ].filter((k)=>!trailerNames.includes(k)
+    );
+    if (undeclared.length > 0) {
+        throw new TypeError(`Undeclared trailers: ${Deno.inspect(undeclared)}.`);
+    }
+    for (const [key, value] of trailers){
+        await writer3.write(encoder.encode(`${key}: ${value}\r\n`));
+    }
+    await writer3.write(encoder.encode("\r\n"));
+    await writer3.flush();
+}
+async function writeResponse(w, r1) {
+    const protoMajor = 1;
+    const protoMinor = 1;
+    const statusCode = r1.status || 200;
+    const statusText = (r1.statusText ?? STATUS_TEXT.get(statusCode)) ?? null;
+    const writer3 = BufWriter.create(w);
+    if (statusText === null) {
+        throw new Deno.errors.InvalidData("Empty statusText (explicitely pass an empty string if this was intentional)");
+    }
+    if (!r1.body) {
+        r1.body = new Uint8Array();
+    }
+    if (typeof r1.body === "string") {
+        r1.body = encoder.encode(r1.body);
+    }
+    let out = `HTTP/${1}.${1} ${statusCode} ${statusText}\r\n`;
+    const headers = r1.headers ?? new Headers();
+    if (r1.body && !headers.get("content-length")) {
+        if (r1.body instanceof Uint8Array) {
+            out += `content-length: ${r1.body.byteLength}\r\n`;
+        } else if (!headers.get("transfer-encoding")) {
+            out += "transfer-encoding: chunked\r\n";
+        }
+    }
+    for (const [key, value] of headers){
+        out += `${key}: ${value}\r\n`;
+    }
+    out += `\r\n`;
+    const header = encoder.encode(out);
+    const n = await writer3.write(header);
+    assert(n === header.byteLength);
+    if (r1.body instanceof Uint8Array) {
+        const n1 = await writer3.write(r1.body);
+        assert(n1 === r1.body.byteLength);
+    } else if (headers.has("content-length")) {
+        const contentLength = headers.get("content-length");
+        assert(contentLength != null);
+        const bodyLength = parseInt(contentLength);
+        const n1 = await Deno.copy(r1.body, writer3);
+        assert(n1 === bodyLength);
+    } else {
+        await writeChunkedBody(writer3, r1.body);
+    }
+    if (r1.trailers) {
+        const t = await r1.trailers();
+        await writeTrailers(writer3, headers, t);
+    }
+    await writer3.flush();
+}
+class ServerRequest {
+    url;
+    method;
+    proto;
+    protoMinor;
+    protoMajor;
+    headers;
+    conn;
+    r;
+    w;
+    #done = deferred();
+    #contentLength = undefined;
+    #body = undefined;
+    #finalized = false;
+    get done() {
+        return this.#done.then((e)=>e
+        );
+    }
+    get contentLength() {
+        if (this.#contentLength === undefined) {
+            const cl = this.headers.get("content-length");
+            if (cl) {
+                this.#contentLength = parseInt(cl);
+                if (Number.isNaN(this.#contentLength)) {
+                    this.#contentLength = null;
+                }
+            } else {
+                this.#contentLength = null;
+            }
+        }
+        return this.#contentLength;
+    }
+    get body() {
+        if (!this.#body) {
+            if (this.contentLength != null) {
+                this.#body = bodyReader(this.contentLength, this.r);
+            } else {
+                const transferEncoding = this.headers.get("transfer-encoding");
+                if (transferEncoding != null) {
+                    const parts = transferEncoding.split(",").map((e)=>e.trim().toLowerCase()
+                    );
+                    assert(parts.includes("chunked"), 'transfer-encoding must include "chunked" if content-length is not set');
+                    this.#body = chunkedBodyReader(this.headers, this.r);
+                } else {
+                    this.#body = emptyReader();
+                }
+            }
+        }
+        return this.#body;
+    }
+    async respond(r) {
+        let err;
+        try {
+            await writeResponse(this.w, r);
+        } catch (e) {
+            try {
+                this.conn.close();
+            } catch  {
+            }
+            err = e;
+        }
+        this.#done.resolve(err);
+        if (err) {
+            throw err;
+        }
+    }
+    async finalize() {
+        if (this.#finalized) return;
+        const body = this.body;
+        const buf = new Uint8Array(1024);
+        while(await body.read(buf) !== null){
+        }
+        this.#finalized = true;
+    }
+}
+function parseHTTPVersion(vers) {
+    switch(vers){
+        case "HTTP/1.1":
+            return [
+                1,
+                1
+            ];
+        case "HTTP/1.0":
+            return [
+                1,
+                0
+            ];
+        default:
+            {
+                const Big = 1000000;
+                if (!vers.startsWith("HTTP/")) {
+                    break;
+                }
+                const dot = vers.indexOf(".");
+                if (dot < 0) {
+                    break;
+                }
+                const majorStr = vers.substring(vers.indexOf("/") + 1, dot);
+                const major = Number(majorStr);
+                if (!Number.isInteger(major) || major < 0 || major > 1000000) {
+                    break;
+                }
+                const minorStr = vers.substring(dot + 1);
+                const minor = Number(minorStr);
+                if (!Number.isInteger(minor) || minor < 0 || minor > 1000000) {
+                    break;
+                }
+                return [
+                    major,
+                    minor
+                ];
+            }
+    }
+    throw new Error(`malformed HTTP version ${vers}`);
+}
+async function readRequest(conn, bufr) {
+    const tp = new TextProtoReader(bufr);
+    const firstLine = await tp.readLine();
+    if (firstLine === null) return null;
+    const headers = await tp.readMIMEHeader();
+    if (headers === null) throw new Deno.errors.UnexpectedEof();
+    const req = new ServerRequest();
+    req.conn = conn;
+    req.r = bufr;
+    [req.method, req.url, req.proto] = firstLine.split(" ", 3);
+    [req.protoMajor, req.protoMinor] = parseHTTPVersion(req.proto);
+    req.headers = headers;
+    fixLength(req);
+    return req;
+}
+class Server {
+    listener;
+    #closing = false;
+    #connections = [];
+    constructor(listener){
+        this.listener = listener;
+    }
+    close() {
+        this.#closing = true;
+        this.listener.close();
+        for (const conn of this.#connections){
+            try {
+                conn.close();
+            } catch (e) {
+                if (!(e instanceof Deno.errors.BadResource)) {
+                    throw e;
+                }
+            }
+        }
+    }
+    async *iterateHttpRequests(conn) {
+        const reader = new BufReader(conn);
+        const writer3 = new BufWriter(conn);
+        while(!this.#closing){
+            let request;
+            try {
+                request = await readRequest(conn, reader);
+            } catch (error1) {
+                if (error1 instanceof Deno.errors.InvalidData || error1 instanceof Deno.errors.UnexpectedEof) {
+                    try {
+                        await writeResponse(writer3, {
+                            status: 400,
+                            body: new TextEncoder().encode(`${error1.message}\r\n\r\n`)
+                        });
+                    } catch  {
+                    }
+                }
+                break;
+            }
+            if (request === null) {
+                break;
+            }
+            request.w = writer3;
+            yield request;
+            const responseError = await request.done;
+            if (responseError) {
+                this.untrackConnection(request.conn);
+                return;
+            }
+            try {
+                await request.finalize();
+            } catch  {
+                break;
+            }
+        }
+        this.untrackConnection(conn);
+        try {
+            conn.close();
+        } catch  {
+        }
+    }
+    trackConnection(conn) {
+        this.#connections.push(conn);
+    }
+    untrackConnection(conn) {
+        const index = this.#connections.indexOf(conn);
+        if (index !== -1) {
+            this.#connections.splice(index, 1);
+        }
+    }
+    async *acceptConnAndIterateHttpRequests(mux) {
+        if (this.#closing) return;
+        let conn;
+        try {
+            conn = await this.listener.accept();
+        } catch (error1) {
+            if (error1 instanceof Deno.errors.BadResource || error1 instanceof Deno.errors.InvalidData || error1 instanceof Deno.errors.UnexpectedEof || error1 instanceof Deno.errors.ConnectionReset) {
+                return mux.add(this.acceptConnAndIterateHttpRequests(mux));
+            }
+            throw error1;
+        }
+        this.trackConnection(conn);
+        mux.add(this.acceptConnAndIterateHttpRequests(mux));
+        yield* this.iterateHttpRequests(conn);
+    }
+    [Symbol.asyncIterator]() {
+        const mux = new MuxAsyncIterator();
+        mux.add(this.acceptConnAndIterateHttpRequests(mux));
+        return mux.iterate();
+    }
+}
+function _parseAddrFromStr(addr) {
+    let url;
+    try {
+        const host = addr.startsWith(":") ? `0.0.0.0${addr}` : addr;
+        url = new URL(`http://${host}`);
+    } catch  {
+        throw new TypeError("Invalid address.");
+    }
+    if (url.username || url.password || url.pathname != "/" || url.search || url.hash) {
+        throw new TypeError("Invalid address.");
+    }
+    return {
+        hostname: url.hostname,
+        port: url.port === "" ? 80 : Number(url.port)
+    };
+}
+function serve(addr) {
+    if (typeof addr === "string") {
+        addr = _parseAddrFromStr(addr);
+    }
+    const listener1 = Deno.listen(addr);
+    return new Server(listener1);
+}
+function serveTLS(options6) {
+    const tlsOptions = {
+        ...options6,
+        transport: "tcp"
+    };
+    const listener1 = Deno.listenTls(tlsOptions);
+    return new Server(listener1);
+}
+function fixLength(req) {
+    const contentLength = req.headers.get("Content-Length");
+    if (contentLength) {
+        const arrClen = contentLength.split(",");
+        if (arrClen.length > 1) {
+            const distinct = [
+                ...new Set(arrClen.map((e)=>e.trim()
+                ))
+            ];
+            if (distinct.length > 1) {
+                throw Error("cannot contain multiple Content-Length headers");
+            } else {
+                req.headers.set("Content-Length", distinct[0]);
+            }
+        }
+        const c = req.headers.get("Content-Length");
+        if (req.method === "HEAD" && c && c !== "0") {
+            throw Error("http: method cannot contain a Content-Length");
+        }
+        if (c && req.headers.has("transfer-encoding")) {
+            throw new Error("http: Transfer-Encoding and Content-Length cannot be send together");
+        }
+    }
+}
+function hasOwnProperty(obj, v) {
+    if (obj == null) {
+        return false;
+    }
+    return Object.prototype.hasOwnProperty.call(obj, v);
+}
+async function readShort(buf) {
+    const high = await buf.readByte();
+    if (high === null) return null;
+    const low = await buf.readByte();
+    if (low === null) throw new Deno.errors.UnexpectedEof();
+    return high << 8 | low;
+}
+async function readInt(buf) {
+    const high = await readShort(buf);
+    if (high === null) return null;
+    const low = await readShort(buf);
+    if (low === null) throw new Deno.errors.UnexpectedEof();
+    return high << 16 | low;
+}
+const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+async function readLong(buf) {
+    const high = await readInt(buf);
+    if (high === null) return null;
+    const low = await readInt(buf);
+    if (low === null) throw new Deno.errors.UnexpectedEof();
+    const big = BigInt(high) << 32n | BigInt(low);
+    if (big > MAX_SAFE_INTEGER) {
+        throw new RangeError("Long value too big to be represented as a JavaScript number.");
+    }
+    return Number(big);
+}
+function sliceLongToBytes(d, dest = new Array(8)) {
+    let big = BigInt(d);
+    for(let i = 0; i < 8; i++){
+        dest[7 - i] = Number(big & 255n);
+        big >>= 8n;
+    }
+    return dest;
+}
+const HEX_CHARS = "0123456789abcdef".split("");
+const EXTRA = [
+    -2147483648,
+    8388608,
+    32768,
+    128
+];
+const SHIFT = [
+    24,
+    16,
+    8,
+    0
+];
+const blocks = [];
+class Sha1 {
+    #blocks;
+    #block;
+    #start;
+    #bytes;
+    #hBytes;
+    #finalized;
+    #hashed;
+    #h0 = 1732584193;
+    #h1 = 4023233417;
+    #h2 = 2562383102;
+    #h3 = 271733878;
+    #h4 = 3285377520;
+    #lastByteIndex = 0;
+    constructor(sharedMemory1 = false){
+        this.init(sharedMemory1);
+    }
+    init(sharedMemory) {
+        if (sharedMemory) {
+            blocks[0] = blocks[16] = blocks[1] = blocks[2] = blocks[3] = blocks[4] = blocks[5] = blocks[6] = blocks[7] = blocks[8] = blocks[9] = blocks[10] = blocks[11] = blocks[12] = blocks[13] = blocks[14] = blocks[15] = 0;
+            this.#blocks = blocks;
+        } else {
+            this.#blocks = [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ];
+        }
+        this.#h0 = 1732584193;
+        this.#h1 = 4023233417;
+        this.#h2 = 2562383102;
+        this.#h3 = 271733878;
+        this.#h4 = 3285377520;
+        this.#block = this.#start = this.#bytes = this.#hBytes = 0;
+        this.#finalized = this.#hashed = false;
+    }
+    update(message) {
+        if (this.#finalized) {
+            return this;
+        }
+        let msg2;
+        if (message instanceof ArrayBuffer) {
+            msg2 = new Uint8Array(message);
+        } else {
+            msg2 = message;
+        }
+        let index = 0;
+        const length = msg2.length;
+        const blocks1 = this.#blocks;
+        while(index < length){
+            let i;
+            if (this.#hashed) {
+                this.#hashed = false;
+                blocks1[0] = this.#block;
+                blocks1[16] = blocks1[1] = blocks1[2] = blocks1[3] = blocks1[4] = blocks1[5] = blocks1[6] = blocks1[7] = blocks1[8] = blocks1[9] = blocks1[10] = blocks1[11] = blocks1[12] = blocks1[13] = blocks1[14] = blocks1[15] = 0;
+            }
+            if (typeof msg2 !== "string") {
+                for(i = this.#start; index < length && i < 64; ++index){
+                    blocks1[i >> 2] |= msg2[index] << SHIFT[(i++) & 3];
+                }
+            } else {
+                for(i = this.#start; index < length && i < 64; ++index){
+                    let code3 = msg2.charCodeAt(index);
+                    if (code3 < 128) {
+                        blocks1[i >> 2] |= code3 << SHIFT[(i++) & 3];
+                    } else if (code3 < 2048) {
+                        blocks1[i >> 2] |= (192 | code3 >> 6) << SHIFT[(i++) & 3];
+                        blocks1[i >> 2] |= (128 | code3 & 63) << SHIFT[(i++) & 3];
+                    } else if (code3 < 55296 || code3 >= 57344) {
+                        blocks1[i >> 2] |= (224 | code3 >> 12) << SHIFT[(i++) & 3];
+                        blocks1[i >> 2] |= (128 | code3 >> 6 & 63) << SHIFT[(i++) & 3];
+                        blocks1[i >> 2] |= (128 | code3 & 63) << SHIFT[(i++) & 3];
+                    } else {
+                        code3 = 65536 + ((code3 & 1023) << 10 | msg2.charCodeAt(++index) & 1023);
+                        blocks1[i >> 2] |= (240 | code3 >> 18) << SHIFT[(i++) & 3];
+                        blocks1[i >> 2] |= (128 | code3 >> 12 & 63) << SHIFT[(i++) & 3];
+                        blocks1[i >> 2] |= (128 | code3 >> 6 & 63) << SHIFT[(i++) & 3];
+                        blocks1[i >> 2] |= (128 | code3 & 63) << SHIFT[(i++) & 3];
+                    }
+                }
+            }
+            this.#lastByteIndex = i;
+            this.#bytes += i - this.#start;
+            if (i >= 64) {
+                this.#block = blocks1[16];
+                this.#start = i - 64;
+                this.hash();
+                this.#hashed = true;
+            } else {
+                this.#start = i;
+            }
+        }
+        if (this.#bytes > 4294967295) {
+            this.#hBytes += this.#bytes / 4294967296 >>> 0;
+            this.#bytes = this.#bytes >>> 0;
+        }
+        return this;
+    }
+    finalize() {
+        if (this.#finalized) {
+            return;
+        }
+        this.#finalized = true;
+        const blocks1 = this.#blocks;
+        const i = this.#lastByteIndex;
+        blocks1[16] = this.#block;
+        blocks1[i >> 2] |= EXTRA[i & 3];
+        this.#block = blocks1[16];
+        if (i >= 56) {
+            if (!this.#hashed) {
+                this.hash();
+            }
+            blocks1[0] = this.#block;
+            blocks1[16] = blocks1[1] = blocks1[2] = blocks1[3] = blocks1[4] = blocks1[5] = blocks1[6] = blocks1[7] = blocks1[8] = blocks1[9] = blocks1[10] = blocks1[11] = blocks1[12] = blocks1[13] = blocks1[14] = blocks1[15] = 0;
+        }
+        blocks1[14] = this.#hBytes << 3 | this.#bytes >>> 29;
+        blocks1[15] = this.#bytes << 3;
+        this.hash();
+    }
+    hash() {
+        let a = this.#h0;
+        let b = this.#h1;
+        let c = this.#h2;
+        let d = this.#h3;
+        let e = this.#h4;
+        let f;
+        let j;
+        let t;
+        const blocks1 = this.#blocks;
+        for(j = 16; j < 80; ++j){
+            t = blocks1[j - 3] ^ blocks1[j - 8] ^ blocks1[j - 14] ^ blocks1[j - 16];
+            blocks1[j] = t << 1 | t >>> 31;
+        }
+        for(j = 0; j < 20; j += 5){
+            f = b & c | ~b & d;
+            t = a << 5 | a >>> 27;
+            e = t + f + e + 1518500249 + blocks1[j] >>> 0;
+            b = b << 30 | b >>> 2;
+            f = a & b | ~a & c;
+            t = e << 5 | e >>> 27;
+            d = t + f + d + 1518500249 + blocks1[j + 1] >>> 0;
+            a = a << 30 | a >>> 2;
+            f = e & a | ~e & b;
+            t = d << 5 | d >>> 27;
+            c = t + f + c + 1518500249 + blocks1[j + 2] >>> 0;
+            e = e << 30 | e >>> 2;
+            f = d & e | ~d & a;
+            t = c << 5 | c >>> 27;
+            b = t + f + b + 1518500249 + blocks1[j + 3] >>> 0;
+            d = d << 30 | d >>> 2;
+            f = c & d | ~c & e;
+            t = b << 5 | b >>> 27;
+            a = t + f + a + 1518500249 + blocks1[j + 4] >>> 0;
+            c = c << 30 | c >>> 2;
+        }
+        for(; j < 40; j += 5){
+            f = b ^ c ^ d;
+            t = a << 5 | a >>> 27;
+            e = t + f + e + 1859775393 + blocks1[j] >>> 0;
+            b = b << 30 | b >>> 2;
+            f = a ^ b ^ c;
+            t = e << 5 | e >>> 27;
+            d = t + f + d + 1859775393 + blocks1[j + 1] >>> 0;
+            a = a << 30 | a >>> 2;
+            f = e ^ a ^ b;
+            t = d << 5 | d >>> 27;
+            c = t + f + c + 1859775393 + blocks1[j + 2] >>> 0;
+            e = e << 30 | e >>> 2;
+            f = d ^ e ^ a;
+            t = c << 5 | c >>> 27;
+            b = t + f + b + 1859775393 + blocks1[j + 3] >>> 0;
+            d = d << 30 | d >>> 2;
+            f = c ^ d ^ e;
+            t = b << 5 | b >>> 27;
+            a = t + f + a + 1859775393 + blocks1[j + 4] >>> 0;
+            c = c << 30 | c >>> 2;
+        }
+        for(; j < 60; j += 5){
+            f = b & c | b & d | c & d;
+            t = a << 5 | a >>> 27;
+            e = t + f + e - 1894007588 + blocks1[j] >>> 0;
+            b = b << 30 | b >>> 2;
+            f = a & b | a & c | b & c;
+            t = e << 5 | e >>> 27;
+            d = t + f + d - 1894007588 + blocks1[j + 1] >>> 0;
+            a = a << 30 | a >>> 2;
+            f = e & a | e & b | a & b;
+            t = d << 5 | d >>> 27;
+            c = t + f + c - 1894007588 + blocks1[j + 2] >>> 0;
+            e = e << 30 | e >>> 2;
+            f = d & e | d & a | e & a;
+            t = c << 5 | c >>> 27;
+            b = t + f + b - 1894007588 + blocks1[j + 3] >>> 0;
+            d = d << 30 | d >>> 2;
+            f = c & d | c & e | d & e;
+            t = b << 5 | b >>> 27;
+            a = t + f + a - 1894007588 + blocks1[j + 4] >>> 0;
+            c = c << 30 | c >>> 2;
+        }
+        for(; j < 80; j += 5){
+            f = b ^ c ^ d;
+            t = a << 5 | a >>> 27;
+            e = t + f + e - 899497514 + blocks1[j] >>> 0;
+            b = b << 30 | b >>> 2;
+            f = a ^ b ^ c;
+            t = e << 5 | e >>> 27;
+            d = t + f + d - 899497514 + blocks1[j + 1] >>> 0;
+            a = a << 30 | a >>> 2;
+            f = e ^ a ^ b;
+            t = d << 5 | d >>> 27;
+            c = t + f + c - 899497514 + blocks1[j + 2] >>> 0;
+            e = e << 30 | e >>> 2;
+            f = d ^ e ^ a;
+            t = c << 5 | c >>> 27;
+            b = t + f + b - 899497514 + blocks1[j + 3] >>> 0;
+            d = d << 30 | d >>> 2;
+            f = c ^ d ^ e;
+            t = b << 5 | b >>> 27;
+            a = t + f + a - 899497514 + blocks1[j + 4] >>> 0;
+            c = c << 30 | c >>> 2;
+        }
+        this.#h0 = this.#h0 + a >>> 0;
+        this.#h1 = this.#h1 + b >>> 0;
+        this.#h2 = this.#h2 + c >>> 0;
+        this.#h3 = this.#h3 + d >>> 0;
+        this.#h4 = this.#h4 + e >>> 0;
+    }
+    hex() {
+        this.finalize();
+        const h0 = this.#h0;
+        const h1 = this.#h1;
+        const h2 = this.#h2;
+        const h3 = this.#h3;
+        const h4 = this.#h4;
+        return HEX_CHARS[h0 >> 28 & 15] + HEX_CHARS[h0 >> 24 & 15] + HEX_CHARS[h0 >> 20 & 15] + HEX_CHARS[h0 >> 16 & 15] + HEX_CHARS[h0 >> 12 & 15] + HEX_CHARS[h0 >> 8 & 15] + HEX_CHARS[h0 >> 4 & 15] + HEX_CHARS[h0 & 15] + HEX_CHARS[h1 >> 28 & 15] + HEX_CHARS[h1 >> 24 & 15] + HEX_CHARS[h1 >> 20 & 15] + HEX_CHARS[h1 >> 16 & 15] + HEX_CHARS[h1 >> 12 & 15] + HEX_CHARS[h1 >> 8 & 15] + HEX_CHARS[h1 >> 4 & 15] + HEX_CHARS[h1 & 15] + HEX_CHARS[h2 >> 28 & 15] + HEX_CHARS[h2 >> 24 & 15] + HEX_CHARS[h2 >> 20 & 15] + HEX_CHARS[h2 >> 16 & 15] + HEX_CHARS[h2 >> 12 & 15] + HEX_CHARS[h2 >> 8 & 15] + HEX_CHARS[h2 >> 4 & 15] + HEX_CHARS[h2 & 15] + HEX_CHARS[h3 >> 28 & 15] + HEX_CHARS[h3 >> 24 & 15] + HEX_CHARS[h3 >> 20 & 15] + HEX_CHARS[h3 >> 16 & 15] + HEX_CHARS[h3 >> 12 & 15] + HEX_CHARS[h3 >> 8 & 15] + HEX_CHARS[h3 >> 4 & 15] + HEX_CHARS[h3 & 15] + HEX_CHARS[h4 >> 28 & 15] + HEX_CHARS[h4 >> 24 & 15] + HEX_CHARS[h4 >> 20 & 15] + HEX_CHARS[h4 >> 16 & 15] + HEX_CHARS[h4 >> 12 & 15] + HEX_CHARS[h4 >> 8 & 15] + HEX_CHARS[h4 >> 4 & 15] + HEX_CHARS[h4 & 15];
+    }
+    toString() {
+        return this.hex();
+    }
+    digest() {
+        this.finalize();
+        const h0 = this.#h0;
+        const h1 = this.#h1;
+        const h2 = this.#h2;
+        const h3 = this.#h3;
+        const h4 = this.#h4;
+        return [
+            h0 >> 24 & 255,
+            h0 >> 16 & 255,
+            h0 >> 8 & 255,
+            h0 & 255,
+            h1 >> 24 & 255,
+            h1 >> 16 & 255,
+            h1 >> 8 & 255,
+            h1 & 255,
+            h2 >> 24 & 255,
+            h2 >> 16 & 255,
+            h2 >> 8 & 255,
+            h2 & 255,
+            h3 >> 24 & 255,
+            h3 >> 16 & 255,
+            h3 >> 8 & 255,
+            h3 & 255,
+            h4 >> 24 & 255,
+            h4 >> 16 & 255,
+            h4 >> 8 & 255,
+            h4 & 255, 
+        ];
+    }
+    array() {
+        return this.digest();
+    }
+    arrayBuffer() {
+        this.finalize();
+        const buffer = new ArrayBuffer(20);
+        const dataView = new DataView(buffer);
+        dataView.setUint32(0, this.#h0);
+        dataView.setUint32(4, this.#h1);
+        dataView.setUint32(8, this.#h2);
+        dataView.setUint32(12, this.#h3);
+        dataView.setUint32(16, this.#h4);
+        return buffer;
+    }
+}
+class HmacSha1 extends Sha1 {
+    #sharedMemory;
+    #inner;
+    #oKeyPad;
+    constructor(secretKey, sharedMemory2 = false){
+        super(sharedMemory2);
+        let key;
+        if (typeof secretKey === "string") {
+            const bytes = [];
+            const length = secretKey.length;
+            let index = 0;
+            for(let i = 0; i < length; i++){
+                let code3 = secretKey.charCodeAt(i);
+                if (code3 < 128) {
+                    bytes[index++] = code3;
+                } else if (code3 < 2048) {
+                    bytes[index++] = 192 | code3 >> 6;
+                    bytes[index++] = 128 | code3 & 63;
+                } else if (code3 < 55296 || code3 >= 57344) {
+                    bytes[index++] = 224 | code3 >> 12;
+                    bytes[index++] = 128 | code3 >> 6 & 63;
+                    bytes[index++] = 128 | code3 & 63;
+                } else {
+                    code3 = 65536 + ((code3 & 1023) << 10 | secretKey.charCodeAt(++i) & 1023);
+                    bytes[index++] = 240 | code3 >> 18;
+                    bytes[index++] = 128 | code3 >> 12 & 63;
+                    bytes[index++] = 128 | code3 >> 6 & 63;
+                    bytes[index++] = 128 | code3 & 63;
+                }
+            }
+            key = bytes;
+        } else {
+            if (secretKey instanceof ArrayBuffer) {
+                key = new Uint8Array(secretKey);
+            } else {
+                key = secretKey;
+            }
+        }
+        if (key.length > 64) {
+            key = new Sha1(true).update(key).array();
+        }
+        const oKeyPad = [];
+        const iKeyPad = [];
+        for(let i = 0; i < 64; i++){
+            const b = key[i] || 0;
+            oKeyPad[i] = 92 ^ b;
+            iKeyPad[i] = 54 ^ b;
+        }
+        this.update(iKeyPad);
+        this.#oKeyPad = oKeyPad;
+        this.#inner = true;
+        this.#sharedMemory = sharedMemory2;
+    }
+    finalize() {
+        super.finalize();
+        if (this.#inner) {
+            this.#inner = false;
+            const innerHash = this.array();
+            super.init(this.#sharedMemory);
+            this.update(this.#oKeyPad);
+            this.update(innerHash);
+            super.finalize();
+        }
+    }
+}
+var OpCode;
+(function(OpCode1) {
+    OpCode1[OpCode1["Continue"] = 0] = "Continue";
+    OpCode1[OpCode1["TextFrame"] = 1] = "TextFrame";
+    OpCode1[OpCode1["BinaryFrame"] = 2] = "BinaryFrame";
+    OpCode1[OpCode1["Close"] = 8] = "Close";
+    OpCode1[OpCode1["Ping"] = 9] = "Ping";
+    OpCode1[OpCode1["Pong"] = 10] = "Pong";
+})(OpCode || (OpCode = {
+}));
+function isWebSocketCloseEvent(a) {
+    return hasOwnProperty(a, "code");
+}
+function unmask(payload, mask) {
+    if (mask) {
+        for(let i1 = 0, len = payload.length; i1 < len; i1++){
+            payload[i1] ^= mask[i1 & 3];
+        }
+    }
+}
+async function writeFrame(frame, writer3) {
+    const payloadLength = frame.payload.byteLength;
+    let header;
+    const hasMask = frame.mask ? 128 : 0;
+    if (frame.mask && frame.mask.byteLength !== 4) {
+        throw new Error("invalid mask. mask must be 4 bytes: length=" + frame.mask.byteLength);
+    }
+    if (payloadLength < 126) {
+        header = new Uint8Array([
+            128 | frame.opcode,
+            hasMask | payloadLength
+        ]);
+    } else if (payloadLength < 65535) {
+        header = new Uint8Array([
+            128 | frame.opcode,
+            hasMask | 126,
+            payloadLength >>> 8,
+            payloadLength & 255, 
+        ]);
+    } else {
+        header = new Uint8Array([
+            128 | frame.opcode,
+            hasMask | 127,
+            ...sliceLongToBytes(payloadLength), 
+        ]);
+    }
+    if (frame.mask) {
+        header = concat(header, frame.mask);
+    }
+    unmask(frame.payload, frame.mask);
+    header = concat(header, frame.payload);
+    const w = BufWriter.create(writer3);
+    await w.write(header);
+    await w.flush();
+}
+async function readFrame(buf) {
+    let b = await buf.readByte();
+    assert(b !== null);
+    let isLastFrame = false;
+    switch(b >>> 4){
+        case 8:
+            isLastFrame = true;
+            break;
+        case 0:
+            isLastFrame = false;
+            break;
+        default:
+            throw new Error("invalid signature");
+    }
+    const opcode = b & 15;
+    b = await buf.readByte();
+    assert(b !== null);
+    const hasMask = b >>> 7;
+    let payloadLength = b & 127;
+    if (payloadLength === 126) {
+        const l = await readShort(buf);
+        assert(l !== null);
+        payloadLength = l;
+    } else if (payloadLength === 127) {
+        const l = await readLong(buf);
+        assert(l !== null);
+        payloadLength = Number(l);
+    }
+    let mask;
+    if (hasMask) {
+        mask = new Uint8Array(4);
+        assert(await buf.readFull(mask) !== null);
+    }
+    const payload = new Uint8Array(payloadLength);
+    assert(await buf.readFull(payload) !== null);
+    return {
+        isLastFrame,
+        opcode,
+        mask,
+        payload
+    };
+}
+class WebSocketImpl {
+    conn;
+    mask;
+    bufReader;
+    bufWriter;
+    sendQueue = [];
+    constructor({ conn , bufReader , bufWriter , mask  }){
+        this.conn = conn;
+        this.mask = mask;
+        this.bufReader = bufReader || new BufReader(conn);
+        this.bufWriter = bufWriter || new BufWriter(conn);
+    }
+    async *[Symbol.asyncIterator]() {
+        const decoder1 = new TextDecoder();
+        let frames = [];
+        let payloadsLength = 0;
+        while(!this._isClosed){
+            let frame;
+            try {
+                frame = await readFrame(this.bufReader);
+            } catch  {
+                this.ensureSocketClosed();
+                break;
+            }
+            unmask(frame.payload, frame.mask);
+            switch(frame.opcode){
+                case OpCode.TextFrame:
+                case OpCode.BinaryFrame:
+                case OpCode.Continue:
+                    frames.push(frame);
+                    payloadsLength += frame.payload.length;
+                    if (frame.isLastFrame) {
+                        const concat1 = new Uint8Array(payloadsLength);
+                        let offs = 0;
+                        for (const frame1 of frames){
+                            concat1.set(frame1.payload, offs);
+                            offs += frame1.payload.length;
+                        }
+                        if (frames[0].opcode === OpCode.TextFrame) {
+                            yield decoder1.decode(concat1);
+                        } else {
+                            yield concat1;
+                        }
+                        frames = [];
+                        payloadsLength = 0;
+                    }
+                    break;
+                case OpCode.Close:
+                    {
+                        const code3 = frame.payload[0] << 8 | frame.payload[1];
+                        const reason = decoder1.decode(frame.payload.subarray(2, frame.payload.length));
+                        await this.close(code3, reason);
+                        yield {
+                            code: code3,
+                            reason
+                        };
+                        return;
+                    }
+                case OpCode.Ping:
+                    await this.enqueue({
+                        opcode: OpCode.Pong,
+                        payload: frame.payload,
+                        isLastFrame: true
+                    });
+                    yield [
+                        "ping",
+                        frame.payload
+                    ];
+                    break;
+                case OpCode.Pong:
+                    yield [
+                        "pong",
+                        frame.payload
+                    ];
+                    break;
+                default:
+            }
+        }
+    }
+    dequeue() {
+        const [entry] = this.sendQueue;
+        if (!entry) return;
+        if (this._isClosed) return;
+        const { d , frame  } = entry;
+        writeFrame(frame, this.bufWriter).then(()=>d.resolve()
+        ).catch((e)=>d.reject(e)
+        ).finally(()=>{
+            this.sendQueue.shift();
+            this.dequeue();
+        });
+    }
+    enqueue(frame) {
+        if (this._isClosed) {
+            throw new Deno.errors.ConnectionReset("Socket has already been closed");
+        }
+        const d = deferred();
+        this.sendQueue.push({
+            d,
+            frame
+        });
+        if (this.sendQueue.length === 1) {
+            this.dequeue();
+        }
+        return d;
+    }
+    send(data) {
+        const opcode = typeof data === "string" ? OpCode.TextFrame : OpCode.BinaryFrame;
+        const payload = typeof data === "string" ? new TextEncoder().encode(data) : data;
+        const isLastFrame = true;
+        const frame = {
+            isLastFrame: true,
+            opcode,
+            payload,
+            mask: this.mask
+        };
+        return this.enqueue(frame);
+    }
+    ping(data = "") {
+        const payload = typeof data === "string" ? new TextEncoder().encode(data) : data;
+        const frame = {
+            isLastFrame: true,
+            opcode: OpCode.Ping,
+            mask: this.mask,
+            payload
+        };
+        return this.enqueue(frame);
+    }
+    _isClosed = false;
+    get isClosed() {
+        return this._isClosed;
+    }
+    async close(code = 1000, reason) {
+        try {
+            const header = [
+                code >>> 8,
+                code & 255
+            ];
+            let payload;
+            if (reason) {
+                const reasonBytes = new TextEncoder().encode(reason);
+                payload = new Uint8Array(2 + reasonBytes.byteLength);
+                payload.set(header);
+                payload.set(reasonBytes, 2);
+            } else {
+                payload = new Uint8Array(header);
+            }
+            await this.enqueue({
+                isLastFrame: true,
+                opcode: OpCode.Close,
+                mask: this.mask,
+                payload
+            });
+        } catch (e) {
+            throw e;
+        } finally{
+            this.ensureSocketClosed();
+        }
+    }
+    closeForce() {
+        this.ensureSocketClosed();
+    }
+    ensureSocketClosed() {
+        if (this.isClosed) return;
+        try {
+            this.conn.close();
+        } catch (e) {
+            console.error(e);
+        } finally{
+            this._isClosed = true;
+            const rest = this.sendQueue;
+            this.sendQueue = [];
+            rest.forEach((e)=>e.d.reject(new Deno.errors.ConnectionReset("Socket has already been closed"))
+            );
+        }
+    }
+}
+function acceptable(req) {
+    const upgrade = req.headers.get("upgrade");
+    if (!upgrade || upgrade.toLowerCase() !== "websocket") {
+        return false;
+    }
+    const secKey = req.headers.get("sec-websocket-key");
+    return req.headers.has("sec-websocket-key") && typeof secKey === "string" && secKey.length > 0;
+}
+const kGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+function createSecAccept(nonce) {
+    const sha1 = new Sha1();
+    sha1.update(nonce + kGUID);
+    const bytes = sha1.digest();
+    return btoa(String.fromCharCode(...bytes));
+}
+async function acceptWebSocket(req) {
+    const { conn: conn1 , headers , bufReader: bufReader1 , bufWriter: bufWriter1  } = req;
+    if (acceptable(req)) {
+        const sock = new WebSocketImpl({
+            conn: conn1,
+            bufReader: bufReader1,
+            bufWriter: bufWriter1
+        });
+        const secKey = headers.get("sec-websocket-key");
+        if (typeof secKey !== "string") {
+            throw new Error("sec-websocket-key is not provided");
+        }
+        const secAccept = createSecAccept(secKey);
+        const newHeaders = new Headers({
+            Upgrade: "websocket",
+            Connection: "Upgrade",
+            "Sec-WebSocket-Accept": secAccept
+        });
+        const secProtocol = headers.get("sec-websocket-protocol");
+        if (typeof secProtocol === "string") {
+            newHeaders.set("Sec-WebSocket-Protocol", secProtocol);
+        }
+        const secVersion = headers.get("sec-websocket-version");
+        if (typeof secVersion === "string") {
+            newHeaders.set("Sec-WebSocket-Version", secVersion);
+        }
+        await writeResponse(bufWriter1, {
+            status: 101,
+            headers: newHeaders
+        });
+        return sock;
+    }
+    throw new Error("request is not acceptable");
+}
+const decoder1 = new TextDecoder();
+class SimpleRequest {
+    server;
+    req;
+    constructor(server, req){
+        this.server = server;
+        this.req = req;
+    }
+    async json() {
+        const bin = await readAll(this.req.body);
+        const str1 = decoder1.decode(bin);
+        return JSON.parse(str1);
+    }
+    get url() {
+        return this.req.url;
+    }
+    get method() {
+        return this.req.method;
+    }
+    get headers() {
+        return this.req.headers;
+    }
+    get contentLength() {
+        return this.req.contentLength;
+    }
+    get body() {
+        return this.req.body;
+    }
+    get done() {
+        return this.req.done;
+    }
+    get impl() {
+        return this.req;
+    }
+    async respond(r) {
+        if (r.json) {
+            r.body = JSON.stringify(r.json, null, 4);
+            if (!r.headers) {
+                r.headers = new Headers();
+            }
+            r.headers.set("content-type", "application/json");
+        }
+        await this.req.respond(r);
+    }
+}
+class LoggerWrapper {
+    sl;
+    constructor(sl){
+        this.sl = sl;
+    }
+    info(msg) {
+        if (this.sl?.info) {
+            this.sl.info(msg);
+        }
+    }
+    error(msg) {
+        if (this.sl?.error) {
+            this.sl.error(msg);
+        }
+    }
+}
+const __default3 = async (logger, req1, e)=>{
+    const err = e?.stack || String(e);
+    const msg2 = `Server Error, method: [${req1.method}], url: [${req1.url}], error: \n${err}`;
+    logger.error(msg2);
+    const headers = new Headers();
+    headers.set("content-type", "application/json");
+    try {
+        await req1.respond({
+            status: 500,
+            headers,
+            body: JSON.stringify({
+                error: "500 Server Error"
+            }, null, 4)
+        });
+    } catch (_) {
+    }
+};
+const __default4 = async (server1, logger, conf, req1)=>{
+    try {
+        logger.info(`HTTP request received, method: [${req1.method}], url: [${req1.url}]`);
+        const sreq = new SimpleRequest(server1, req1);
+        const resp = await conf.handler(sreq);
+        await sreq.respond(resp);
+    } catch (e) {
+        __default3(logger, req1, e);
+    }
+};
+function html(strings, ...values) {
+    const l = strings.length - 1;
+    let html1 = "";
+    for(let i1 = 0; i1 < l; i1++){
+        let v = values[i1];
+        if (v instanceof Array) {
+            v = v.join("");
+        }
+        const s = strings[i1] + v;
+        html1 += s;
+    }
+    html1 += strings[l];
+    return html1;
+}
+const __default5 = (dirname6, entries)=>{
+    return html`\n    <!DOCTYPE html>\n    <html lang="en">\n      <head>\n        <meta charset="UTF-8" />\n        <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n        <title>Index of ${dirname6}</title>\n        <style>\n          @media (min-width: 960px) {\n            main {\n              max-width: 960px;\n            }\n            body {\n              padding-left: 32px;\n              padding-right: 32px;\n            }\n          }\n          @media (min-width: 600px) {\n            main {\n              padding-left: 24px;\n              padding-right: 24px;\n            }\n          }\n          a {\n            color: #2196f3;\n            text-decoration: none;\n          }\n          a:hover {\n            text-decoration: underline;\n          }\n          table th {\n            text-align: left;\n          }\n          table td {\n            padding: 12px 24px 0 0;\n          }\n        </style>\n      </head>\n      <body>\n        <main>\n          <h1>Index of ${dirname6}</h1>\n          <table>\n            <tr>\n              <th>Size</th>\n              <th>Name</th>\n            </tr>\n            ${entries.map((entry)=>html`\n                  <tr>\n                    <td>\n                      ${entry.size}\n                    </td>\n                    <td>\n                      <a href="${entry.url}">${entry.name}</a>\n                    </td>\n                  </tr>\n                `
+    )}\n          </table>\n        </main>\n      </body>\n    </html>\n  `;
+};
+const __default6 = (url)=>{
+    let normalizedUrl = url;
+    try {
+        normalizedUrl = decodeURI(normalizedUrl);
+    } catch (e) {
+        if (!(e instanceof URIError)) {
+            throw e;
+        }
+    }
+    try {
+        const absoluteURI = new URL(normalizedUrl);
+        normalizedUrl = absoluteURI.pathname;
+    } catch (e) {
+        if (!(e instanceof TypeError)) {
+            throw e;
+        }
+    }
+    if (normalizedUrl[0] !== "/") {
+        throw new URIError("The request URI is malformed.");
+    }
+    normalizedUrl = posix.normalize(normalizedUrl);
+    const startOfParams = normalizedUrl.indexOf("?");
+    return startOfParams > -1 ? normalizedUrl.slice(0, startOfParams) : normalizedUrl;
+};
+const __default7 = async (logger, req1)=>{
+    const msg2 = `Bad Request, method: [${req1.method}], url: [${req1.url}]`;
+    logger.error(msg2);
+    const headers = new Headers();
+    headers.set("content-type", "application/json");
+    try {
+        await req1.respond({
+            status: 400,
+            headers,
+            body: JSON.stringify({
+                error: "400 Bad Request",
+                path: req1.url
+            }, null, 4)
+        });
+    } catch (_) {
+    }
+};
+const __default8 = async (logger, req1)=>{
+    const msg2 = `Not Found, method: [${req1.method}], url: [${req1.url}]`;
+    logger.error(msg2);
+    const headers = new Headers();
+    headers.set("content-type", "application/json");
+    try {
+        await req1.respond({
+            status: 404,
+            headers,
+            body: JSON.stringify({
+                error: "404 Not Found",
+                path: req1.url
+            }, null, 4)
+        });
+    } catch (_) {
+    }
+};
+const encoder1 = new TextEncoder();
+const MEDIA_TYPES = {
+    ".md": "text/markdown",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".json": "application/json",
+    ".map": "application/json",
+    ".txt": "text/plain",
+    ".js": "application/javascript",
+    ".ts": "text/javascript",
+    ".gz": "application/gzip",
+    ".css": "text/css",
+    ".wasm": "application/wasm",
+    ".svg": "image/svg+xml",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif"
+};
+function fileLenToString(len) {
+    const multiplier = 1024;
+    let base = 1;
+    const suffix = [
+        "B",
+        "K",
+        "M",
+        "G",
+        "T"
+    ];
+    let suffixIndex = 0;
+    while(base * 1024 < len){
+        if (suffixIndex >= suffix.length - 1) {
+            break;
+        }
+        base *= multiplier;
+        suffixIndex++;
+    }
+    return `${(len / base).toFixed(2)}${suffix[suffixIndex]}`;
+}
+async function serveFile(req1, filePath) {
+    const [file, fileInfo] = await Promise.all([
+        Deno.open(filePath),
+        Deno.stat(filePath), 
+    ]);
+    const headers = new Headers();
+    headers.set("content-length", fileInfo.size.toString());
+    const contentType = MEDIA_TYPES[extname5(filePath)];
+    if (contentType) {
+        headers.set("content-type", contentType);
+    }
+    req1.done.then(()=>{
+        file.close();
+    });
+    return {
+        status: 200,
+        body: file,
+        headers
+    };
+}
+async function serveDir(rootDirectory, req1, dirPath) {
+    const dirUrl = `/${mod4.relative(rootDirectory, dirPath)}`;
+    const listEntry = [];
+    if (dirUrl !== "/") {
+        listEntry.push({
+            size: "",
+            name: "../",
+            url: mod4.join(dirUrl, ".."),
+            isDirectory: true
+        });
+    }
+    for await (const entry of Deno.readDir(dirPath)){
+        const filePath = mod4.join(dirPath, entry.name);
+        const fileUrl = mod4.join(dirUrl, entry.name);
+        if (entry.name === "index.html" && entry.isFile) {
+            return serveFile(req1, filePath);
+        }
+        const fileInfo = await Deno.stat(filePath);
+        listEntry.push({
+            size: entry.isFile ? fileLenToString(fileInfo.size ?? 0) : "",
+            name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
+            url: `${fileUrl}${entry.isDirectory ? "/" : ""}`,
+            isDirectory: entry.isDirectory
+        });
+    }
+    listEntry.sort((a, b)=>{
+        if (a.isDirectory && !b.isDirectory) {
+            return -1;
+        } else if (!a.isDirectory && b.isDirectory) {
+            return 1;
+        }
+        return a.name.toLowerCase() > b.name.toLowerCase() ? 1 : -1;
+    });
+    const formattedDirUrl = `${dirUrl.replace(/\/$/, "")}/`;
+    const page = encoder1.encode(__default5(formattedDirUrl, listEntry));
+    const headers = new Headers();
+    headers.set("content-type", "text/html");
+    const res = {
+        status: 200,
+        body: page,
+        headers
+    };
+    return res;
+}
+async function respondNoThrow(logger, req1, resp) {
+    try {
+        await req1.respond(resp);
+    } catch (e) {
+        __default3(logger, req1, e);
+    }
+}
+const __default9 = async (logger, conf, req1)=>{
+    let fsPath = "";
+    try {
+        const relativeUrl = "/" + req1.url.substring(conf.path.length);
+        const normalizedUrl = __default6(relativeUrl);
+        fsPath = posix.join(conf.rootDirectory, normalizedUrl);
+        const fileInfo = await Deno.stat(fsPath);
+        if (fileInfo.isDirectory) {
+            if (conf.dirListingEnabled) {
+                const resp = await serveDir(conf.rootDirectory, req1, fsPath);
+                respondNoThrow(logger, req1, resp);
+            } else {
+                throw new Deno.errors.NotFound();
+            }
+        } else {
+            const resp = await serveFile(req1, fsPath);
+            respondNoThrow(logger, req1, resp);
+        }
+    } catch (e) {
+        logger.error(`Error serving file, path: [${fsPath}]`);
+        if (e instanceof URIError) {
+            __default7(logger, req1);
+        } else if (e instanceof Deno.errors.NotFound) {
+            __default8(logger, req1);
+        } else {
+            __default3(logger, req1, e);
+        }
+    }
+};
+async function callHandler(logger, handler, sock, ev) {
+    try {
+        await handler(sock, ev);
+    } catch (e) {
+        const err = e?.stack || String(e);
+        logger.error(`WebSocket handler error: error: \n${err}`);
+        throw e;
+    }
+}
+async function handleSock(logger, conf, sock) {
+    for await (const ev of sock){
+        if (conf.handler) {
+            await callHandler(logger, conf.handler, sock, ev);
+        }
+        if (isWebSocketCloseEvent(ev)) {
+            break;
+        }
+    }
+}
+async function handleSockNothrow(logger, conf, active, sock) {
+    try {
+        active.add(sock);
+        logger.info(`WebSocket connection opened, id: [${sock.conn.rid}]`);
+        await handleSock(logger, conf, sock);
+    } catch (_) {
+    } finally{
+        active.delete(sock);
+        logger.info(`WebSocket connection closed, id: [${sock.conn.rid}]`);
+        if (!sock.isClosed) {
+            try {
+                await sock.close();
+            } catch (_) {
+            }
+        }
+    }
+}
+const __default10 = async (logger, conf, active, req1)=>{
+    try {
+        const { conn: conn1 , r: bufReader1 , w: bufWriter1 , headers  } = req1;
+        const sock = await acceptWebSocket({
+            conn: conn1,
+            bufReader: bufReader1,
+            bufWriter: bufWriter1,
+            headers
+        });
+        handleSockNothrow(logger, conf, active, sock);
+    } catch (e) {
+        __default3(logger, req1, e);
+    }
+};
+class SimpleServer1 {
+    conf;
+    logger;
+    srv;
+    activeWebSockets;
+    done;
+    constructor(conf){
+        this.conf = conf;
+        this.logger = new LoggerWrapper(conf.logger);
+        if ("certFile" in conf.listen) {
+            this.srv = serveTLS(conf.listen);
+        } else {
+            this.srv = serve(conf.listen);
+        }
+        this.activeWebSockets = new Set();
+        this.done = this._iterateRequests();
+    }
+    async close() {
+        this.srv.close();
+        await this.done;
+    }
+    async broadcastWebsocket(msg) {
+        let st = "";
+        if ("string" !== typeof msg) {
+            st = JSON.stringify(msg, null, 4);
+        } else {
+            st = String(msg);
+        }
+        const promises = [];
+        for (const ws of this.activeWebSockets){
+            const pr = ws.send(st);
+            promises.push(pr);
+        }
+        try {
+            await Promise.allSettled(promises);
+        } catch (_) {
+        }
+    }
+    async _iterateRequests() {
+        for await (const req1 of this.srv){
+            if (this.conf.http && req1.url.startsWith(this.conf.http.path)) {
+                __default4(this, this.logger, this.conf.http, req1);
+            } else if (this.conf.files && req1.url.startsWith(this.conf.files.path)) {
+                __default9(this.logger, this.conf.files, req1);
+            } else if (this.conf.websocket && req1.url === this.conf.websocket.path) {
+                __default10(this.logger, this.conf.websocket, this.activeWebSockets, req1);
+            } else {
+                __default8(this.logger, req1);
+            }
+        }
+    }
+}
 export { existsSync1 as existsSync };
+export { readLines1 as readLines };
 export { mod as log };
 export { basename5 as basename, dirname5 as dirname, join5 as join };
 export { dayjs_min as dayjs };
 export { Yargs as yargs };
+export { SimpleServer1 as SimpleServer };

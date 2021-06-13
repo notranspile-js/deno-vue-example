@@ -24,9 +24,10 @@ export default async () => {
       "bundle",
       "--unstable",
       //"--reload",
-      join(conf().appdir, "server/deps_gen.ts"),
-      join(conf().appdir, "server/deps.js"),
+      "deps_gen.ts",
+      "deps.js",
     ],
+    cwd: join(conf().appdir, "server")
   }).status();
   if (!status.success) {
     throw new Error("Dependencies update error");

@@ -14,31 +14,30 @@
  * limitations under the License.
  */
 
-import { log, SimpleServer } from "../deps.js";
+import { log } from "../deps.js";
 import conf from "../conf.js";
-import httpHandler from "../calls/_calls.js";
+import beginBroadcast from "./beginBroadcast.js";
+import config from "./config.js";
+import hello from "./hello.js";
 
-export default () => {
+export default async (req) => {
   const logger = log.getLogger();
-  const cs = conf().server;
 
-  const server = new SimpleServer({
-    listen: {
-      port: cs.tcpPort,
-      hostname: cs.ipAddress,
-    },
-    logger: {
-      info: (msg) => logger.debug(`server: ${msg}`),
-      error: (msg) => logger.warning(`server: ${msg}`),
-    },
-    http: {
-      path: cs.http.path,
-      handler: httpHandler
-    },
-    files: cs.files,
-    websocket: cs.websocket
-  });
+  const name = req.url.substring(conf().server.http.path.length);
+  switch (name) {
 
-  logger.info(`Server started, url: [http://${cs.ipAddress}:${cs.tcpPort}/]`);
-  return server;
+    case "beginBroadcast": return await beginBroadcast(req);
+    case "config": return await config(req);
+    case "hello": return await hello(req);
+
+    default:
+      return {
+        status: 404,
+        json: {
+          error: "404 Not Found",
+          path: req.url,
+          httpCallName: name,
+        },
+      };
+  }
 };

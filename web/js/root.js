@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
+import fetchTemplate from "./common/utils/fetchTemplate.js";
 
 export default async () => {
-  const logger = log.getLogger();
+  return {
+    template: await fetchTemplate(import.meta.url),
 
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
-};
+    components: {},
+
+  };
+}

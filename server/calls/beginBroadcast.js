@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
-
-export default async () => {
-  const logger = log.getLogger();
-
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
+export default async (req) => {
+  if ("POST" === req.method) {
+    const msg = await req.json();
+    const broadcast = async () => {
+      await req.server.broadcastWebsocket({
+        message: msg,
+      });
+      setTimeout(broadcast, 3000);
+    }
+  }
+  return {};
 };

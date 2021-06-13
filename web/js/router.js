@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
+import { createWebHashHistory } from "./libs/vue-router.esm-browser.js";
 
-export default async () => {
-  const logger = log.getLogger();
+import about from "./modules/about/about.js"
+import landing from "./modules/landing/landing.js"
 
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
-};
+export default async function() {
+  return {
+        routes: [
+            { path: "/", redirect: "/landing" },
+            { path: "/landing", component: await landing() },
+            { path: "/about", component: await about() }
+        ],
+        history: createWebHashHistory()
+    };
+}

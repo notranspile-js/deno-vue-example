@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
-
-export default async () => {
-  const logger = log.getLogger();
-
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
-};
+export default async function (modurl) {
+  const url = modurl.replace(/\.js$/, ".html");
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(
+      `Template fetch error, status: [${resp.status}], url: [${url}]`,
+    );
+  }
+  return await resp.text();
+}

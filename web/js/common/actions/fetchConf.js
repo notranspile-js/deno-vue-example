@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
-
-export default async () => {
-  const logger = log.getLogger();
-
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
-};
+export default async (context) => {
+  if (null === context.state.conf) {
+    const resp = await fetch("/api/config");
+    const conf = await resp.json();
+    context.commit("setConf", conf);
+  }
+}

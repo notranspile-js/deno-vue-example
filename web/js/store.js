@@ -14,13 +14,29 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
+import landingStore from "./modules/landing/landingStore.js";
+import fetchConf from "./common/actions/fetchConf.js";
 
 export default async () => {
-  const logger = log.getLogger();
+  return {
+    strict: true,
 
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
+    modules: {
+      landing: await landingStore(),
+    },
+
+    state() {
+      return {
+        conf: null
+      }
+    },
+
+    actions: {
+      fetchConf
+    },
+
+    mutations: {
+      setConf: (state, val) => state.conf = val
+    },
+  };
 };

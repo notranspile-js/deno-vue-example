@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
+import { createApp } from "./libs/vue.esm-browser.js";
+import { createRouter } from "./libs/vue-router.esm-browser.js";
+import { createStore } from "./libs/vuex.esm-browser.js";
 
-export default async () => {
-  const logger = log.getLogger();
+import root from "./root.js"
+import store from "./store.js"
+import router from "./router.js"
 
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
-};
+const rootComp = await root();
+const storeComp = await store();
+const routerComp = await router();
+const app = createApp(rootComp);
+
+app.use(createStore(storeComp));
+app.use(createRouter(routerComp));
+app.mount("#root");

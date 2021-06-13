@@ -14,31 +14,30 @@
  * limitations under the License.
  */
 
-import { log, SimpleServer } from "../deps.js";
-import conf from "../conf.js";
-import httpHandler from "../calls/_calls.js";
-
 export default () => {
-  const logger = log.getLogger();
-  const cs = conf().server;
+  return {
+    namespaced: true,
 
-  const server = new SimpleServer({
-    listen: {
-      port: cs.tcpPort,
-      hostname: cs.ipAddress,
-    },
-    logger: {
-      info: (msg) => logger.debug(`server: ${msg}`),
-      error: (msg) => logger.warning(`server: ${msg}`),
-    },
-    http: {
-      path: cs.http.path,
-      handler: httpHandler
-    },
-    files: cs.files,
-    websocket: cs.websocket
-  });
+    state() {
+      return {
 
-  logger.info(`Server started, url: [http://${cs.ipAddress}:${cs.tcpPort}/]`);
-  return server;
+        count: 0,
+
+        anotherVal: ""
+
+      };
+    },
+
+    mutations: {
+
+      increment(state) {
+        state.count += 1;
+      },
+
+      setAnotherVal(state, val) {
+        state.anotherVal = val;
+      }
+
+    },
+  };
 };

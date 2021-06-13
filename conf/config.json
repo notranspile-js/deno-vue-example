@@ -4,10 +4,21 @@
   "server": {
     "ipAddress": "127.0.0.1",
     "tcpPort": 8080,
-    "rootFilesDirectory": "{{appdir}}/web"
+    "http": {
+      "path": "/api/"
+    },
+    "websocket": {
+      "path": "/websocket/"
+    },
+    "files": {
+      "path": "/web/",
+      "rootDirectory": "{{appdir}}/web",
+      "dirListingEnabled": true
+    }
   },
 
   "web": {
+    "someWebParameter": 42
   },
 
   "logging": {
@@ -22,5 +33,10 @@
       "mode": "a",
       "dateFormat": "YYYY-MM-DD HH:mm:ss.SSS"
     }
+  },
+
+  "winscm": {
+    "name": "example",
+    "pluginPath": "{{appdir}}/bin/windows_scm_plugin_1.0.0.dll"
   }
 }

@@ -1,4 +1,4 @@
-/*
+<!--
  * Copyright 2021, alex at staticlibs.net
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,15 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+-->
 
-import { log } from "../deps.js";
-import startServer from "./startServer.js";
+<example-header label="About Page" description="Some detailed description on About Page">
+</example-header>
 
-export default async () => {
-  const logger = log.getLogger();
+<div class="row mt-4">
+  <div class="col">
+    Web config: {{config}}
+  </div>
+</div>
 
-  const server = startServer();
-  logger.info("Press Ctrl+C to stop");
-  await server.done;
-};
+<hr class="mt-4">
+
+<div class="row">
+  <div class="col">
+    <button type="button" class="btn btn-lg btn-secondary" v-on:click="toLanding">
+      Go to Landing
+    </button>
+  </div>
+</div>
