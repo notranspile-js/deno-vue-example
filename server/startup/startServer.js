@@ -28,7 +28,7 @@ export default () => {
       hostname: cs.ipAddress,
     },
     logger: {
-      info: (msg) => logger.info(`server: ${msg}`),
+      info: (msg) => logger.debug(`server: ${msg}`),
       error: (msg) => logger.warning(`server: ${msg}`),
     },
     http: {

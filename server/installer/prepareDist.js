@@ -14,25 +14,21 @@
  * limitations under the License.
  */
 
-import { log, readLines } from "../deps.js";
-import createDirs from "./createDirs.js";
-import setupLogging from "./setupLogging.js";
-import startServer from "./startServer.js";
+import { copySync, join, log } from "../deps.js";
+import conf from "../conf.js";
 
-export default async () => {
-  await createDirs();
-  await setupLogging();
-
+export default (workDir) => {
   const logger = log.getLogger();
+  logger.info("Preparing dist files ...");
 
-  const server = startServer();
-  logger.info("Press Enter to stop");
+  const distDir = join(workDir, "dist");
+  Deno.mkdirSync(distDir);
 
-  for await (const _ of readLines(Deno.stdin)) {
-    break;
-  }
+  copySync(join(conf().appdir, "bin"), join(distDir, "bin"));
+  copySync(join(conf().appdir, "conf"), join(distDir, "conf"));
+  copySync(join(conf().appdir, "server"), join(distDir, "server"));
+  copySync(join(conf().appdir, "web"), join(distDir, "web"));
+  copySync(join(conf().appdir, "main.js"), join(distDir, "main.js"));
 
-  logger.info("Shutting down ...")
-  await server.close();
-  logger.info("Shutdown complete")
+  return distDir;
 };

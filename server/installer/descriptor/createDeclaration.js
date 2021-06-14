@@ -14,25 +14,14 @@
  * limitations under the License.
  */
 
-import { log, readLines } from "../deps.js";
-import createDirs from "./createDirs.js";
-import setupLogging from "./setupLogging.js";
-import startServer from "./startServer.js";
-
-export default async () => {
-  await createDirs();
-  await setupLogging();
-
-  const logger = log.getLogger();
-
-  const server = startServer();
-  logger.info("Press Enter to stop");
-
-  for await (const _ of readLines(Deno.stdin)) {
-    break;
-  }
-
-  logger.info("Shutting down ...")
-  await server.close();
-  logger.info("Shutdown complete")
+export default () => {
+  return {
+    _declaration: {
+      _attributes: {
+        version: "1.0",
+        encoding: "utf-8",
+        standalone: "yes",
+      },
+    },
+  };
 };

@@ -1,5 +1,6 @@
 {
   "appdir": "{{appdir}}",
+  "appversion": "1.0.0.0",
 
   "server": {
     "ipAddress": "127.0.0.1",
@@ -38,6 +39,20 @@
 
   "winscm": {
     "name": "example",
-    "pluginPath": "{{appdir}}/bin/windows_scm_plugin_1.0.0.dll"
+    "pluginPath": "{{appdir}}/bin/windows_scm_plugin_1.0.0_deno_1.10.dll"
+  },
+
+  "installer": {
+    "helpLink": "https://github.com/notranspile-js/deno-vue-example",
+    "productName": "Example Application",
+    "displayName": "Example Application",
+    "description": "Example Application built with Deno and Vue",
+    "shortcutLabel": "Example Application",
+    "manufacturer": "alex@staticlibs.net",
+    "upgradeCode": "08f2045a-87b2-41ce-80a7-4f73db5e5fa8",
+    "installDirName": "example",
+    "msiFileName": "example",
+    "serviceName": "example",
+    "pluginDllUrl": "https://github.com/notranspile-js/deno-windows-scm/releases/download/1.0.0_deno_1.10/windows_scm_plugin_1.0.0_deno_1.10.dll"
   }
 }

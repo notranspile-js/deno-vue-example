@@ -14,25 +14,33 @@
  * limitations under the License.
  */
 
-import { log, readLines } from "../deps.js";
-import createDirs from "./createDirs.js";
-import setupLogging from "./setupLogging.js";
-import startServer from "./startServer.js";
+import conf from "../../conf.js";
 
-export default async () => {
-  await createDirs();
-  await setupLogging();
-
-  const logger = log.getLogger();
-
-  const server = startServer();
-  logger.info("Press Enter to stop");
-
-  for await (const _ of readLines(Deno.stdin)) {
-    break;
-  }
-
-  logger.info("Shutting down ...")
-  await server.close();
-  logger.info("Shutdown complete")
+export default () => {
+  return [{
+    _attributes: {
+      Id: "WIXUI_INSTALLDIR",
+      Value: "INSTALLDIR",
+    },
+  }, {
+    _attributes: {
+      Id: "ARPHELPLINK",
+      Value: conf().installer.helpLink,
+    },
+  }, {
+    _attributes: {
+      Id: "ARPPRODUCTICON",
+      Value: "icon.exe",
+    },
+  }, {
+    _attributes: {
+      Id: "WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT",
+      Value: "Launch Initial Configuration UI",
+    },
+  }, {
+    _attributes: {
+      Id: "WIXUI_EXITDIALOGOPTIONALCHECKBOX",
+      Value: "1",
+    },
+  }];
 };

@@ -29,10 +29,17 @@
 // stdlib
 
 // @ts-ignore extension
-export { existsSync } from "https://deno.land/std@0.97.0/fs/exists.ts";
+export {
+  copySync,
+  emptyDirSync,
+  existsSync,
+} from "https://deno.land/std@0.97.0/fs/mod.ts";
 
 // @ts-ignore extension
-export { readLines } from "https://deno.land/std@0.97.0/io/bufio.ts";
+export {
+  readerFromStreamReader,
+  readLines,
+} from "https://deno.land/std@0.97.0/io/mod.ts";
 
 // @ts-ignore extension
 import * as log from "https://deno.land/std@0.97.0/log/mod.ts";
@@ -42,8 +49,12 @@ export { log };
 export {
   basename,
   dirname,
+  fromFileUrl,
   join,
 } from "https://deno.land/std@0.97.0/path/mod.ts";
+
+// @ts-ignore extension
+export { v4 as uuidv4 } from "https://deno.land/std@0.97.0/uuid/mod.ts";
 
 // dayjs
 //import dayjs from "https://deno.land/x/dayjs@v1.10.5/src/index.js";
@@ -56,5 +67,10 @@ export { dayjs };
 import yargs from "https://deno.land/x/yargs@v17.0.1-deno/deno.ts";
 export { yargs };
 
+// deno-js2xml
+import js2xml from "https://raw.githubusercontent.com/notranspile-js/deno-js2xml/1.0.0/js2xml.js";
+export { js2xml };
+
 // deno-simple-server
+// @ts-ignore extension
 export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.0/mod.ts";

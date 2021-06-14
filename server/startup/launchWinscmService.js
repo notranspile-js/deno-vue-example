@@ -16,22 +16,28 @@
 
 import { log } from "../deps.js";
 import conf from "../conf.js";
+import createDirs from "./createDirs.js";
+import setupLogging from "./setupLogging.js";
+import startServer from "./startServer.js";
 
 export default async () => {
+  await createDirs();
+  await setupLogging();
+
   const logger = log.getLogger();
 
   logger.info("Loading WinSCM plugin ...");
-  Deno.openPlugin(conf.winscm.pluginPath);
+  Deno.openPlugin(conf().winscm.pluginPath);
 
   const server = startServer();
 
   logger.info("Is due to call SCM dispatcher ...");
   // this call blocks until the service is stopped
   await Deno.core.opAsync("op_winscm_start_dispatcher", {
-      name: "myservice"
+      name: conf().winscm.name
   });
 
   logger.info("Shutting down ...")
   await server.close();
-  logger.info("Shutdown complete")
+  logger.critical("Shutdown complete")
 };

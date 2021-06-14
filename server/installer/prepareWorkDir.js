@@ -14,25 +14,15 @@
  * limitations under the License.
  */
 
-import { log, readLines } from "../deps.js";
-import createDirs from "./createDirs.js";
-import setupLogging from "./setupLogging.js";
-import startServer from "./startServer.js";
+import { emptyDirSync, join, log } from "../deps.js";
+import conf from "../conf.js";
 
-export default async () => {
-  await createDirs();
-  await setupLogging();
-
+export default () => {
   const logger = log.getLogger();
+  logger.info("Preparing work directory ...");
+  const workDir = join(conf().appdir, "work/installer/");
 
-  const server = startServer();
-  logger.info("Press Enter to stop");
+  emptyDirSync(workDir);
 
-  for await (const _ of readLines(Deno.stdin)) {
-    break;
-  }
-
-  logger.info("Shutting down ...")
-  await server.close();
-  logger.info("Shutdown complete")
+  return workDir;
 };

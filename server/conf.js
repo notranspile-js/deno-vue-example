@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-import { dirname, join } from "./deps.js";
+import { dirname, fromFileUrl, join } from "./deps.js";
 
 let conf = null;
 
 export default () => {
   if (null === conf) {
-    const serverdir = dirname(import.meta.url.substring("file://".length));
-    const appdir = dirname(serverdir);
+    const filePath = fromFileUrl(import.meta.url);
+    const serverdir = dirname(filePath);
+    const appdir = dirname(serverdir).replaceAll("\\", "/");
     const txt = Deno.readTextFileSync(join(appdir, "conf/config.json"));
     const replaced = txt.replaceAll("{{appdir}}", appdir);
     conf = JSON.parse(replaced);

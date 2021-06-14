@@ -24,10 +24,19 @@ if (import.meta.main) {
     .command("update-deps", "Update dependencies bundle")
     .command("launch-system-browser", "Launch system browser")
     .command("launch-winscm-service", "Entry point for Windows Service Control Manager")
+    .command("check-sanity", "Perform sanity check for application files")
+    .command("create-msi-installer", "Create MSI installer, '--wix-directory' must be specified")
     .option("url", {
       demandOption: false,
       default: "index.html",
       describe: "Relative URL to open in system browser",
+      type: "string",
+      nargs: 1,
+    })
+    .option("wix-directory", {
+      demandOption: false,
+      default: null,
+      describe: "Path to Wix tool directory",
       type: "string",
       nargs: 1,
     })
