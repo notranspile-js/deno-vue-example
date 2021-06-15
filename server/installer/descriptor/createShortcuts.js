@@ -26,11 +26,11 @@ export default () => {
       Icon: "icon.exe",
       Directory: "DesktopFolder",
       WorkingDirectory: "INSTALLDIR",
-      Target: "[INSTALLDIR]bin\\deno.exe",
+      Target: "[INSTALLDIR]bin\\denow.exe",
       Arguments: "run -A" +
         " \"[INSTALLDIR]main.js\"" +
         " launch-system-browser" +
-        " --url /web/index.html",
+        " --url web/index.html",
     },
   }];
 };

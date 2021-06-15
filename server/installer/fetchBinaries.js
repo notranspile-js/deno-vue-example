@@ -36,6 +36,25 @@ export default async () => {
     Deno.copyFileSync(Deno.execPath(), denoExe);
   }
 
+  const launcherExeName = basename(conf().installer.launcherExeUrl);
+  const launcherExe = join(conf().appdir, `bin/${launcherExeName}`);
+  if (!existsSync(launcherExe)) {
+    logger.info(
+      `Fetching Windows launcher, url: [${conf().installer.launcherExeUrl}] ...`,
+    );
+    const rsp = await fetch(conf().installer.launcherExeUrl);
+    const reader = readerFromStreamReader(rsp.body?.getReader());
+    const file = Deno.openSync(launcherExe, {
+      create: true,
+      write: true,
+    });
+    try {
+      await Deno.copy(reader, file);
+    } finally {
+      file.close();
+    }
+  }
+
   const pluginDllName = basename(conf().installer.pluginDllUrl);
   const pluginDll = join(conf().appdir, `bin/${pluginDllName}`);
   if (!existsSync(pluginDll)) {

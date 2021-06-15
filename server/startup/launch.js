@@ -26,7 +26,7 @@ export default async (cmd, args, parser) => {
     case "launch-system-browser": return await launchSystemBrowser(args.url);
     case "launch-winscm-service": return await launchWinscmService();
     case "create-msi-installer": return await createMsiInstaller(args["wix-directory"]);
-    case "check-sanity": return;
+    case "check-sanity": return Deno.exit(0);
     default: {
       if (cmd.length > 0) {
         console.log(

@@ -11972,18 +11972,13 @@ const __default7 = (dirname6, entries)=>{
 };
 const __default8 = (url)=>{
     let normalizedUrl = url;
+    if (!normalizedUrl.startsWith("/")) {
+        normalizedUrl = `/${normalizedUrl}`;
+    }
     try {
         normalizedUrl = decodeURI(normalizedUrl);
     } catch (e) {
         if (!(e instanceof URIError)) {
-            throw e;
-        }
-    }
-    try {
-        const absoluteURI = new URL(normalizedUrl);
-        normalizedUrl = absoluteURI.pathname;
-    } catch (e) {
-        if (!(e instanceof TypeError)) {
             throw e;
         }
     }
@@ -12087,8 +12082,8 @@ async function serveFile(req1, filePath) {
         headers
     };
 }
-async function serveDir(rootDirectory, req1, dirPath) {
-    const dirUrl = `/${mod4.relative(rootDirectory, dirPath)}`;
+async function serveDir(conf, req1, dirPath) {
+    const dirUrl = `/${mod4.relative(conf.rootDirectory, dirPath)}`;
     const listEntry = [];
     if (dirUrl !== "/") {
         listEntry.push({
@@ -12108,7 +12103,7 @@ async function serveDir(rootDirectory, req1, dirPath) {
         listEntry.push({
             size: entry.isFile ? fileLenToString(fileInfo.size ?? 0) : "",
             name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
-            url: `${fileUrl}${entry.isDirectory ? "/" : ""}`,
+            url: `${conf.path}${fileUrl}${entry.isDirectory ? "/" : ""}`,
             isDirectory: entry.isDirectory
         });
     }
@@ -12141,13 +12136,13 @@ async function respondNoThrow(logger, req1, resp) {
 const __default11 = async (untrack, logger, conf, req1)=>{
     let fsPath = "";
     try {
-        const relativeUrl = "/" + req1.url.substring(conf.path.length);
+        const relativeUrl = req1.url.substring(conf.path.length);
         const normalizedUrl = __default8(relativeUrl);
         fsPath = posix.join(conf.rootDirectory, normalizedUrl);
         const fileInfo = await Deno.stat(fsPath);
         if (fileInfo.isDirectory) {
             if (conf.dirListingEnabled) {
-                const resp = await serveDir(conf.rootDirectory, req1, fsPath);
+                const resp = await serveDir(conf, req1, fsPath);
                 respondNoThrow(logger, req1, resp);
             } else {
                 throw new Deno.errors.NotFound();

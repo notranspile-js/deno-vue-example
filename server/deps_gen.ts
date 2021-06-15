@@ -73,4 +73,4 @@ export { js2xml };
 
 // deno-simple-server
 // @ts-ignore extension
-export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.0/mod.ts";
+export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.1/mod.ts";

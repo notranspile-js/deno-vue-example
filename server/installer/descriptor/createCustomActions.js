@@ -35,7 +35,7 @@ export default {
     }, {
       _attributes: {
         Id: "sanity_check",
-        FileKey: "DENO_EXE_ID",
+        FileKey: "DENOW_EXE_ID",
         Return: "check",
         Execute: "deferred",
         Impersonate: "no",
@@ -46,13 +46,13 @@ export default {
     }, {
       _attributes: {
         Id: "postinstall",
-        FileKey: "DENO_EXE_ID",
+        FileKey: "DENOW_EXE_ID",
         Return: "asyncNoWait",
         Impersonate: "yes",
         ExeCommand: "run -A" +
           " &quot;[INSTALLDIR]main.js&quot;" +
           " launch-system-browser" +
-          " --url /web/index.html#/postinstall",
+          " --url web/index.html#/landing",
       },
     }];
   },
