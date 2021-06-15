@@ -11,6 +11,8 @@ Build Windows MSI installer that registers the app with [SCM](https://docs.micro
 
     deno run -A main.js create-msi-installer --wix-directory path/to/wix
 
+Installer requires [Microsoft Visual C++ Redistributable for Visual Studio 2019](https://aka.ms/vs/16/release/vc_redist.x64.exe) (direct download link) to be installed.
+
 License information
 -------------------
 
