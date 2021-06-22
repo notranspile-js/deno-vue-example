@@ -25,28 +25,28 @@ Installer requires [Microsoft Visual C++ Redistributable for Visual Studio 2019]
 Server
 ------
 
-### Command-Line interface
+#### Command-Line interface
 
 [main.js](https://github.com/notranspile-js/deno-vue-example/blob/master/main.js) is used as a single entry point for all operations. [yargs](http://yargs.js.org/) is used for declaring command-line options. A "command" is declared for every operation, typical usage:
 
     deno run -A some-command --my-option1 arg1 --my-option2
 
-### Dependency Management
+#### Dependency Management
 
 A variation of a [deps.ts approach](https://deno.land/manual@v1.10.2/linking_to_external_code#it-seems-unwieldy-to-import-urls-everywhere) is used for dependency management. All Deno stdlib and third-party dependencies are declared inside [deps_gen.ts](https://github.com/notranspile-js/deno-vue-example/blob/master/server/deps_gen.ts) and bundled into a single `deps.js` file that is cheked into VCS. When additional dependency is introduced this file needs to be re-generated using `update-deps` app command or manually using `deno bundle` directly.
 
-### HTTP calls
+#### HTTP calls
 
 [deno-simple-server](https://github.com/notranspile-js/deno-simple-server#simple-web-server-for-deno) is used to serve files and respond to HTTP requests. HTTP handler ([example](https://github.com/notranspile-js/deno-vue-example/blob/master/server/calls/hello.js#L17)) is an async function that needs to be registered in the [root HTTP handler](https://github.com/notranspile-js/deno-vue-example/blob/fba30fa7aed7048dd9e62d6d0e8ebf1612c27eb2/server/calls/_calls.js#L31). It takes [SimpleRequest](https://github.com/notranspile-js/deno-simple-server/blob/1af0b9d9da13450f5270dbd9d2641563c0d5d051/SimpleRequest.ts#L23) as an input and needs to return [SimpleResponse](https://github.com/notranspile-js/deno-simple-server/blob/1af0b9d9da13450f5270dbd9d2641563c0d5d051/types.ts#L41). Required resulting object is an extension to the Deno [stdlib http Response](https://doc.deno.land/https/deno.land/std@0.97.0/http/mod.ts#Response) that additionally supports `json` field (can be used instead of `body` field) that takes a JSON object.
 
-### WebSocket broadcast
+#### WebSocket broadcast
 
 WebSocket can be used to push data from the server to the web UI, broadcasting it to the all
 connected WebSocket clients. This can be used for "live" updating UI with the new data available on server. Such broadcasting can be done from any place on backend where [server object](https://github.com/notranspile-js/deno-vue-example/blob/fba30fa7aed7048dd9e62d6d0e8ebf1612c27eb2/server/startup/startServer.js#L44) is available, in [this example](https://github.com/notranspile-js/deno-vue-example/blob/fba30fa7aed7048dd9e62d6d0e8ebf1612c27eb2/server/calls/beginBroadcast.js#L29) periodic broadcast is initiated from the HTTP handler. 
 
 Note, it is also possible to react on WebSocket data coming from clients using [WebSocketHandler](https://github.com/notranspile-js/deno-simple-server/blob/master/types.ts#L52), but it may be more convenient to use HTTP requests for that.
 
-### Windows SCM
+#### Windows SCM
 
 Native plugin [deno-windows-scm](https://github.com/notranspile-js/deno-windows-scm) is used for integration with Windows [Service Control Manager](https://docs.microsoft.com/en-us/windows/win32/services/service-control-manager). Plugin is downloaded from the [specified URL](https://github.com/notranspile-js/deno-vue-example/blob/master/conf/config.json#L57) when the installer is bundled.
 
