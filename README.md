@@ -46,6 +46,12 @@ connected WebSocket clients. This can be used for "live" updating UI with the ne
 
 Note, it is also possible to react on WebSocket data coming from clients using [WebSocketHandler](https://github.com/notranspile-js/deno-simple-server/blob/master/types.ts#L52), but it may be more convenient to use HTTP requests for that.
 
+### Windows SCM
+
+Native plugin [deno-windows-scm](https://github.com/notranspile-js/deno-windows-scm) is used for integration with Windows [Service Control Manager](https://docs.microsoft.com/en-us/windows/win32/services/service-control-manager). Plugin is downloaded from the [specified URL](https://github.com/notranspile-js/deno-vue-example/blob/master/conf/config.json#L57) when the installer is bundled.
+
+Note, native plugin API in Deno is not yet stable, supported version of Deno (currently `1.10.x`) is reflected in the plugin version `1.0.0_deno_1.10`.
+
 Web UI
 ------
 
