@@ -25,6 +25,9 @@ export default async (wixDir, descriptor) => {
   const codeCandle = await Deno.run({
     cmd: [
       join(wixDir, "bin/candle.exe"),
+      "-nologo",
+      "-arch",
+      "x64",
       "-o",
       `${name}.wixobj`,
       descriptor,
@@ -38,6 +41,7 @@ export default async (wixDir, descriptor) => {
   const codeLight = await Deno.run({
     cmd: [
       join(wixDir, "bin/light.exe"),
+      "-nologo",
       "-sw1076",
       "-ext",
       "WixUIExtension",

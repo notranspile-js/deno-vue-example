@@ -63,10 +63,13 @@ function processDirRecursive(dirPath, dirEl) {
           },
         },
       });
+      if ("deno.exe" === ch.name) {
+        const compEl = dirEl.Component[dirEl.Component.length - 1];
+        addService(compEl);
+      }
       if ("denow.exe" === ch.name) {
         const compEl = dirEl.Component[dirEl.Component.length - 1];
         compEl.File._attributes.Id = "DENOW_EXE_ID";
-        addService(compEl);
         addShortcuts(compEl);
       }
     }

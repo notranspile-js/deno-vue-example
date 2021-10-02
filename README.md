@@ -29,7 +29,7 @@ Server
 
 [main.js](https://github.com/notranspile-js/deno-vue-example/blob/master/main.js) is used as a single entry point for all operations. [yargs](http://yargs.js.org/) is used for declaring command-line options. A "command" is declared for every operation, typical usage:
 
-    deno run -A some-command --my-option1 arg1 --my-option2
+    deno run -A main.js some-command --my-option1 arg1 --my-option2
 
 #### Dependency Management
 
