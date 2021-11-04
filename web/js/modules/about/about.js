@@ -17,31 +17,30 @@
 import fetchTemplate from "../../common/utils/fetchTemplate.js";
 import Header from "../../components/header/Header.js";
 
-export default async () => {
-  return {
-    template: await fetchTemplate(import.meta.url),
+const template = await fetchTemplate(import.meta.url);
 
-    async created() {
-      await this.$store.dispatch("fetchConf");
-      this.$store.dispatch("about/listenToBroadcasts");
-    },
+export default {
+  template,
 
-    components: {
-      "example-header": new (await Header())(),
-    },
+  created() {
+    this.$store.dispatch("about/listenToBroadcasts");
+  },
 
-    computed: {
-      broadcasts() {
-        const arr = this.$store.state.about.broadcasts.slice();
-        arr.reverse();
-        return arr; 
-      }
-    },
+  components: {
+    "example-header": new Header(),
+  },
 
-    methods: {
-      toLanding() {
-        this.$router.push("/landing");
-      },
+  computed: {
+    broadcasts() {
+      const arr = this.$store.state.about.broadcasts.slice();
+      arr.reverse();
+      return arr;
     },
-  };
+  },
+
+  methods: {
+    toLanding() {
+      this.$router.push("/landing");
+    },
+  },
 };

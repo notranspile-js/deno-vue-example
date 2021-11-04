@@ -29,32 +29,20 @@
 // stdlib
 
 // @ts-ignore extension
-export {
-  copySync,
-  emptyDirSync,
-  existsSync,
-} from "https://deno.land/std@0.97.0/fs/mod.ts";
+export * as fs from "https://deno.land/std@0.110.0/fs/mod.ts";
 
 // @ts-ignore extension
-export {
-  readerFromStreamReader,
-  readLines,
-} from "https://deno.land/std@0.97.0/io/mod.ts";
+export * as io from "https://deno.land/std@0.110.0/io/mod.ts";
 
 // @ts-ignore extension
-import * as log from "https://deno.land/std@0.97.0/log/mod.ts";
+import * as log from "https://deno.land/std@0.110.0/log/mod.ts";
 export { log };
 
 // @ts-ignore extension
-export {
-  basename,
-  dirname,
-  fromFileUrl,
-  join,
-} from "https://deno.land/std@0.97.0/path/mod.ts";
+export * as path from "https://deno.land/std@0.110.0/path/mod.ts";
 
 // @ts-ignore extension
-export { v4 as uuidv4 } from "https://deno.land/std@0.97.0/uuid/mod.ts";
+export { v4 as uuidv4 } from "https://deno.land/std@0.110.0/uuid/mod.ts";
 
 // dayjs
 //import dayjs from "https://deno.land/x/dayjs@v1.10.5/src/index.js";
@@ -73,4 +61,8 @@ export { js2xml };
 
 // deno-simple-server
 // @ts-ignore extension
-export { SimpleServer } from "https://raw.githubusercontent.com/notranspile-js/deno-simple-server/1.0.1/mod.ts";
+export { SimpleServer, SimpleRequest } from "https://deno.land/x/simple_server@1.1.0/mod.ts";
+
+// deno-windows-scm
+// @ts-ignore extension
+export { winscmStartDispatcher } from "https://deno.land/x/windows_scm@1.1.1/mod.ts";

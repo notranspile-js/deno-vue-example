@@ -18,15 +18,17 @@ import { createApp } from "./libs/vue.esm-browser.js";
 import { createRouter } from "./libs/vue-router.esm-browser.js";
 import { createStore } from "./libs/vuex.esm-browser.js";
 
-import root from "./root.js"
-import store from "./store.js"
-import router from "./router.js"
+import conf from "./common/conf.js";
+import root from "./root.js";
+import store from "./store.js";
+import router from "./router.js";
 
-const rootComp = await root();
-const storeComp = await store();
-const routerComp = await router();
-const app = createApp(rootComp);
+const resp = await fetch("/api/config");
+const confVal = await resp.json();
+conf(confVal);
 
-app.use(createStore(storeComp));
-app.use(createRouter(routerComp));
+const app = createApp(root);
+
+app.use(createStore(store));
+app.use(createRouter(router));
 app.mount("#root");

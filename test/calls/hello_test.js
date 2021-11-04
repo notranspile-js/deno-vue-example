@@ -16,10 +16,23 @@
 
 import { assertEquals } from "../test_deps.js";
 
-Deno.test("calls/hello", async () => {
+Deno.test("calls/hello GET", async () => {
   const resp = await fetch("http://127.0.0.1:8080/api/hello");
   const obj = await resp.json();
   assertEquals(obj, {
-    message: "Hello!"
+    message: "Hello World!"
+  })
+});
+
+Deno.test("calls/hello POST", async () => {
+  const resp = await fetch("http://127.0.0.1:8080/api/hello", {
+    method: "POST",
+    body: JSON.stringify({
+      message: "Tests"
+    }, null, 4)
+  });
+  const obj = await resp.json();
+  assertEquals(obj, {
+    message: "Hello Tests!"
   })
 });

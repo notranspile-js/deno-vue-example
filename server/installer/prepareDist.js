@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
-import { copySync, join, log } from "../deps.js";
+import { fs, log, path } from "../deps.js";
 import conf from "../conf.js";
 
 export default (workDir) => {
   const logger = log.getLogger();
   logger.info("Preparing dist files ...");
 
+  const join = path.join;
   const distDir = join(workDir, "dist");
   Deno.mkdirSync(distDir);
 
-  copySync(join(conf().appdir, "bin"), join(distDir, "bin"));
-  copySync(join(conf().appdir, "conf"), join(distDir, "conf"));
-  copySync(join(conf().appdir, "server"), join(distDir, "server"));
-  copySync(join(conf().appdir, "web"), join(distDir, "web"));
-  copySync(join(conf().appdir, "main.js"), join(distDir, "main.js"));
+  fs.copySync(join(conf().appdir, "bin"), join(distDir, "bin"));
+  fs.copySync(join(conf().appdir, "conf"), join(distDir, "conf"));
+  fs.copySync(join(conf().appdir, "server"), join(distDir, "server"));
+  fs.copySync(join(conf().appdir, "web"), join(distDir, "web"));
+  fs.copySync(join(conf().appdir, "main.js"), join(distDir, "main.js"));
 
   return distDir;
 };

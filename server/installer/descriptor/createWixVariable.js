@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-import { join } from "../../deps.js";
+import { path } from "../../deps.js";
 import conf from "../../conf.js";
 
 export default () => {
   return [{
     _attributes: {
       Id: "WixUILicenseRtf",
-      Value: join(conf().appdir, "server/installer/resources/LICENSE.rtf"),
+      Value: path.join(conf().appdir, "server/installer/resources/LICENSE.rtf"),
     },
   }, {
     _attributes: {
       Id: "WixUIBannerBmp",
-      Value: join(conf().appdir, "server/installer/resources/top.bmp"),
+      Value: path.join(conf().appdir, "server/installer/resources/top.bmp"),
     },
   }, {
     _attributes: {
       Id: "WixUIDialogBmp",
-      Value: join(conf().appdir, "server/installer/resources/greetings.bmp"),
+      Value: path.join(conf().appdir, "server/installer/resources/greetings.bmp"),
     },
   }];
 };

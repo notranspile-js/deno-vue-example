@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import { log, readLines } from "../deps.js";
+import { io, log } from "../deps.js";
+import shutdownFlag from "../service/shutdownFlag.js";
 import createDirs from "./createDirs.js";
+import intervalTracker from "../service/intervalTracker.js";
 import setupLogging from "./setupLogging.js";
 import startServer from "./startServer.js";
 
@@ -28,11 +30,13 @@ export default async () => {
   const server = startServer();
   logger.info("Press Enter to stop");
 
-  for await (const _ of readLines(Deno.stdin)) {
+  for await (const _ of io.readLines(Deno.stdin)) {
     break;
   }
 
   logger.info("Shutting down ...")
+  shutdownFlag.mark();
+  intervalTracker.clear();
   await server.close();
   logger.info("Shutdown complete")
 };

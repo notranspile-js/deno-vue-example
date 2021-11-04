@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { existsSync, join } from "../deps.js";
+import { fs, path } from "../deps.js";
 import conf from "../conf.js";
 
 export default () => {
-  const log = join(conf().appdir, "log");
-  if (!existsSync(log)) {
+  const log = path.join(conf().appdir, "log");
+  if (!fs.existsSync(log)) {
     Deno.mkdirSync(log);
   }
-  const work = join(conf().appdir, "work");
-  if (!existsSync(work)) {
+  const work = path.join(conf().appdir, "work");
+  if (!fs.existsSync(work)) {
     Deno.mkdirSync(work);
   }
 };

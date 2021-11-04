@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import conf from "../../../common/conf.js";
+
 export default async (ctx) => {
   if (!ctx.state.listening) {
     ctx.commit("enableListening");
-    const url = ctx.rootState.conf.webSocketUrl;
-    // todo: close the socket on page reload
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(conf().webSocketUrl);
     ws.addEventListener("message", (event) => {
       console.log("Receiving: [" + event.data + "]");
       const en = JSON.parse(event.data);
@@ -31,8 +31,8 @@ export default async (ctx) => {
     await fetch("/api/beginBroadcast", {
       method: "POST",
       body: JSON.stringify({
-        message: "hello"
-      })
-    })
+        message: "hello",
+      }),
+    });
   }
 };

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { join, log } from "../deps.js";
+import { log, path } from "../deps.js";
 
 export default async (wixDir, descriptor) => {
   const logger = log.getLogger();
@@ -24,7 +24,7 @@ export default async (wixDir, descriptor) => {
 
   const codeCandle = await Deno.run({
     cmd: [
-      join(wixDir, "bin/candle.exe"),
+      path.join(wixDir, "bin/candle.exe"),
       "-nologo",
       "-arch",
       "x64",
@@ -40,7 +40,7 @@ export default async (wixDir, descriptor) => {
 
   const codeLight = await Deno.run({
     cmd: [
-      join(wixDir, "bin/light.exe"),
+      path.join(wixDir, "bin/light.exe"),
       "-nologo",
       "-sw1076",
       "-ext",

@@ -16,29 +16,27 @@
 
 import listenToBroadcasts from "./actions/listenToBroadcasts.js";
 
-export default () => {
-  return {
-    namespaced: true,
+export default {
+  namespaced: true,
 
-    state() {
-      return {
-        listening: false,
-        broadcasts: [],
-      };
-    },
+  state() {
+    return {
+      listening: false,
+      broadcasts: [],
+    };
+  },
 
-    actions: {
-      listenToBroadcasts,
-    },
+  actions: {
+    listenToBroadcasts,
+  },
 
-    mutations: {
-      enableListening: (state) => state.listening = true,
-      appendBroadcastEntry: (state, en) => {
-        if (state.broadcasts.length > 5) {
-          state.broadcasts.shift();
-        }
-        state.broadcasts.push(en);
-      },
+  mutations: {
+    enableListening: (state) => state.listening = true,
+    appendBroadcastEntry: (state, en) => {
+      if (state.broadcasts.length > 5) {
+        state.broadcasts.shift();
+      }
+      state.broadcasts.push(en);
     },
-  };
+  },
 };

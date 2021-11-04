@@ -26,6 +26,7 @@ if (import.meta.main) {
     .command("launch-winscm-service", "Entry point for Windows Service Control Manager")
     .command("check-sanity", "Perform sanity check for application files")
     .command("create-msi-installer", "Create MSI installer, '--wix-directory' must be specified")
+    .command("run-tests", "Run the in-tree testsuite")
     .option("url", {
       demandOption: false,
       default: "index.html",

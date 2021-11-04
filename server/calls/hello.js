@@ -15,12 +15,14 @@
  */
 
 export default async (req) => {
+  let input = null;
   if ("POST" === req.method) {
-    const input = await req.json();
+    input = await req.json();
   }
+  const name = input?.message?? "World"
   return {
     json: {
-      message: "Hello!"
+      message: `Hello ${name}!`
     }
   };
 };

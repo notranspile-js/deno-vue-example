@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { join, uuidv4 } from "../../deps.js";
+import { uuidv4, path } from "../../deps.js";
 import conf from "../../conf.js";
 import createService from "./createService.js";
 import createShortcuts from "./createShortcuts.js";
@@ -32,7 +32,7 @@ function addShortcuts(compEl) {
 function processDirRecursive(dirPath, dirEl) {
   const children = Deno.readDirSync(dirPath);
   for (const ch of children) {
-    const chPath = join(dirPath, ch.name);
+    const chPath = path.join(dirPath, ch.name);
     if (ch.isDirectory) {
       dirEl.Directory.push({
         _attributes: {

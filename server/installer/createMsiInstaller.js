@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { existsSync, log } from "../deps.js";
+import { fs, log } from "../deps.js";
 import bundleInstaller from "./bundleInstaller.js";
 import fetchBinaries from "./fetchBinaries.js";
 import prepareDist from "./prepareDist.js";
@@ -27,7 +27,7 @@ export default async (wixDir) => {
   if (null == wixDir) {
     throw new Error("'--wix-directory' parameter must be specified");
   }
-  if (!existsSync(wixDir)) {
+  if (!fs.existsSync(wixDir)) {
     throw new Error(`Invalid Wix directory specified, path: [${wixDir}]`);
   }
 

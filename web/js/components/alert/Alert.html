@@ -1,4 +1,4 @@
-/*
+<!--
  * Copyright 2021, alex at staticlibs.net
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+-->
 
-export default async (ctx) => {
-  if (null === ctx.state.conf) {
-    const resp = await fetch("/api/config");
-    const conf = await resp.json();
-    ctx.commit("setConf", conf);
-  }
-}
+<div role="alert"
+        v-bind:class="alertCss">
+    {{message}}
+    <button type="button" class="btn-close"
+            v-show="showButton"
+            v-on:click="closeButtonClicked">
+    </button>
+</div>

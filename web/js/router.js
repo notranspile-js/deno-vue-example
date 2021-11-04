@@ -16,16 +16,16 @@
 
 import { createWebHashHistory } from "./libs/vue-router.esm-browser.js";
 
-import about from "./modules/about/about.js"
-import landing from "./modules/landing/landing.js"
+import about from "./modules/about/about.js";
+import landing from "./modules/landing/landing.js";
+import setup from "./modules/setup/setup.js";
 
-export default async function() {
-  return {
-        routes: [
-            { path: "/", redirect: "/landing" },
-            { path: "/landing", component: await landing() },
-            { path: "/about", component: await about() }
-        ],
-        history: createWebHashHistory()
-    };
-}
+export default {
+  routes: [
+    { path: "/", redirect: "/landing" },
+    { path: "/landing", component: landing },
+    { path: "/about", component: about },
+    { path: "/setup", component: setup },
+  ],
+  history: createWebHashHistory(),
+};

@@ -15,23 +15,40 @@
  */
 
 import { dayjs, log } from "../deps.js";
+import intervalTracker from "../service/intervalTracker.js";
+
+let active = false;
 
 export default async (req) => {
   const logger = log.getLogger();
 
-  if ("POST" === req.method) {
-    const obj = await req.json();
-    logger.info(`Initiating broadcast, message: [${obj.message}]`);
-    const broadcast = () => {
-      if (req.server.closing) {
-        return;
-      }
-      req.server.broadcastWebsocket({
-        message: dayjs().format(),
-      });
-      setTimeout(broadcast, 1000);
-    };
-    broadcast();
+  if ("POST" !== req.method) {
+    throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
   }
-  return {};
+
+  const obj = await req.json();
+
+  if (active) {
+    return {
+      status: 400,
+      json: {
+        error: "Broadcast is already running"
+      }
+    };
+  }
+
+  logger.info(`Initiating broadcast, message: [${obj.message}]`);
+  active = true;
+  const intervalId = setInterval(() => {
+    req.server.broadcastWebsocket({
+      message: `${dayjs().format()} ${obj.message}`,
+    });
+  }, 1000);
+  intervalTracker.track(intervalId);
+
+  return {
+    json: {
+      success: true
+    }
+  };
 };

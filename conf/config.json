@@ -1,7 +1,10 @@
 {
   "appdir": "{{appdir}}",
   "appversion": "1.0.0.0",
-
+  "example": {
+    "foo": "baz",
+    "bar": "boo"
+  },
   "server": {
     "ipAddress": "127.0.0.1",
     "tcpPort": 8080,
@@ -18,11 +21,10 @@
     },
     "rootRedirectLocation": "/web/index.html"
   },
-
   "web": {
-    "webSocketUrl": "ws://127.0.0.1:8080/websocket/"
+    "webSocketUrl": "ws://127.0.0.1:8080/websocket/",
+    "restartTimeoutMillis": 5000
   },
-
   "logging": {
     "console": {
       "level": "INFO"
@@ -36,12 +38,11 @@
       "dateFormat": "YYYY-MM-DD HH:mm:ss.SSS"
     }
   },
-
   "winscm": {
     "name": "example",
-    "pluginPath": "{{appdir}}/bin/windows_scm_plugin_1.0.0_deno_1.10.dll"
+    "libPath": "{{appdir}}/bin/deno_windows_scm_1.1.1.dll",
+    "logPath": "{{appdir}}/log/scm.log"
   },
-
   "installer": {
     "helpLink": "https://github.com/notranspile-js/deno-vue-example",
     "productName": "Example Application",
@@ -53,7 +54,14 @@
     "installDirName": "example",
     "msiFileName": "example",
     "serviceName": "example",
-    "launcherExeUrl": "https://github.com/notranspile-js/deno-windows-launcher/releases/download/1.0.0/denow.exe",
-    "pluginDllUrl": "https://github.com/notranspile-js/deno-windows-scm/releases/download/1.0.0_deno_1.10/windows_scm_plugin_1.0.0_deno_1.10.dll"
+    "launcherExeUrl": "https://github.com/notranspile-js/deno-windows-launcher/releases/download/1.0.1/denow.exe",
+    "pluginDllUrl": "https://github.com/notranspile-js/deno-windows-scm/releases/download/1.1.1/deno_windows_scm_1.1.1.dll"
+  },
+  "test": {
+    "logging": {
+      "console": {
+        "level": "WARN"
+      }
+    }
   }
 }

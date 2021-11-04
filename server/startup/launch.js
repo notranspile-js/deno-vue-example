@@ -15,6 +15,7 @@
  */
 
 import createMsiInstaller from "../installer/createMsiInstaller.js";
+import runTests from "../service/runTests.js";
 import updateDeps from "../service/updateDeps.js";
 import launchDefault from "./launchDefault.js";
 import launchSystemBrowser from "./launchSystemBrowser.js";
@@ -26,6 +27,7 @@ export default async (cmd, args, parser) => {
     case "launch-system-browser": return await launchSystemBrowser(args.url);
     case "launch-winscm-service": return await launchWinscmService();
     case "create-msi-installer": return await createMsiInstaller(args["wix-directory"]);
+    case "run-tests": return await runTests();
     case "check-sanity": return Deno.exit(0);
     default: {
       if (cmd.length > 0) {

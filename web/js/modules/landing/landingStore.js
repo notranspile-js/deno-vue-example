@@ -14,30 +14,23 @@
  * limitations under the License.
  */
 
-export default () => {
-  return {
-    namespaced: true,
+export default {
+  namespaced: true,
 
-    state() {
-      return {
+  state() {
+    return {
+      count: 0,
+      anotherVal: "",
+    };
+  },
 
-        count: 0,
-
-        anotherVal: ""
-
-      };
+  mutations: {
+    increment(state) {
+      state.count += 1;
     },
 
-    mutations: {
-
-      increment(state) {
-        state.count += 1;
-      },
-
-      setAnotherVal(state, val) {
-        state.anotherVal = val;
-      }
-
+    setAnotherVal(state, val) {
+      state.anotherVal = val;
     },
-  };
+  },
 };

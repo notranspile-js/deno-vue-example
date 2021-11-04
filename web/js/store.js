@@ -14,31 +14,20 @@
  * limitations under the License.
  */
 
-import fetchConf from "./common/actions/fetchConf.js";
 import aboutStore from "./modules/about/aboutStore.js";
 import landingStore from "./modules/landing/landingStore.js";
+import setupStore from "./modules/setup/setupStore.js";
 
-export default async () => {
-  return {
-    strict: true,
+export default {
+  strict: true,
 
-    modules: {
-      about: await aboutStore(),
-      landing: await landingStore(),
-    },
+  modules: {
+    about: aboutStore,
+    landing: landingStore,
+    setup: setupStore,
+  },
 
-    state() {
-      return {
-        conf: null
-      }
-    },
-
-    actions: {
-      fetchConf
-    },
-
-    mutations: {
-      setConf: (state, val) => state.conf = val
-    },
-  };
+  state() {
+    return {};
+  },
 };

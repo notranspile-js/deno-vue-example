@@ -16,11 +16,10 @@
 
 import fetchTemplate from "./common/utils/fetchTemplate.js";
 
-export default async () => {
-  return {
-    template: await fetchTemplate(import.meta.url),
+const template = await fetchTemplate(import.meta.url);
 
-    components: {},
+export default {
+  template,
 
-  };
-}
+  components: {},
+};

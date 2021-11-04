@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { join } from "../deps.js";
+import { path } from "../deps.js";
 import conf from "../conf.js";
 
 export default async () => {
@@ -27,7 +27,7 @@ export default async () => {
       "deps_gen.ts",
       "deps.js",
     ],
-    cwd: join(conf().appdir, "server")
+    cwd: path.join(conf().appdir, "server")
   }).status();
   if (!status.success) {
     throw new Error("Dependencies update error");

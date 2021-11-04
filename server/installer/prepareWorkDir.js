@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { emptyDirSync, join, log } from "../deps.js";
+import { fs, log, path } from "../deps.js";
 import conf from "../conf.js";
 
 export default () => {
   const logger = log.getLogger();
   logger.info("Preparing work directory ...");
-  const workDir = join(conf().appdir, "work/installer/");
+  const workDir = path.join(conf().appdir, "work/installer/");
 
-  emptyDirSync(workDir);
+  fs.emptyDirSync(workDir);
 
   return workDir;
 };

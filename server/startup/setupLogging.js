@@ -35,7 +35,7 @@ export default async () => {
         mode: lc.file.mode,
         formatter: (rec) => {
           const date = dayjs(rec.datetime).format(lc.file.dateFormat);
-          return `[${date} ${rec.levelName}] ${rec.msg}`
+          return `[${date} ${rec.levelName.padEnd(8)}] ${rec.msg}`
         }
       }),
     },
