@@ -21,6 +21,7 @@ import landing from "./modules/landing/landing.js";
 import setup from "./modules/setup/setup.js";
 
 export default {
+  devtools: false,
   routes: [
     { path: "/", redirect: "/landing" },
     { path: "/landing", component: landing },

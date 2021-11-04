@@ -20,6 +20,7 @@ import setupStore from "./modules/setup/setupStore.js";
 
 export default {
   strict: true,
+  devtools: false,
 
   modules: {
     about: aboutStore,
