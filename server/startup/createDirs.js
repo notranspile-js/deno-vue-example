@@ -26,4 +26,9 @@ export default () => {
   if (!fs.existsSync(work)) {
     Deno.mkdirSync(work);
   }
+
+  // preserve last used config just in case
+  const confPath = path.join(conf().appdir, "conf", "config.json");
+  const lastConfPath = path.join(work, "config_last.json");
+  Deno.copyFileSync(confPath, lastConfPath);
 };
