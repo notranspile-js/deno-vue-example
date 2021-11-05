@@ -55,10 +55,14 @@
 
 <div class="row">
   <div class="col">
-    <button type="button" class="btn btn-lg btn-secondary" v-on:click="toLanding">
+    <button type="button" class="btn btn-lg btn-secondary"
+        v-on:click="toLanding"
+        v-bind:disabled="!buttonsEnabled">
       Go to Landing Page
     </button>
-    <button type="button" class="btn btn-lg btn-secondary mx-2" v-on:click="restart">
+    <button type="button" class="btn btn-lg btn-secondary mx-2"
+        v-on:click="restart"
+        v-bind:disabled="!buttonsEnabled">
       Apply and Restart
     </button>
   </div>

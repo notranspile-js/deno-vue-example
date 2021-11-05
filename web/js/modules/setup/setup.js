@@ -112,6 +112,12 @@ export default {
           return false;
       }
     },
+
+    buttonsEnabled() {
+      const ls = this.$store.state.setup.loadAlert.status;
+      const rs = this.$store.state.setup.restartAlert.status;
+      return loadStatus.SUCCESS === ls && restartStatus.INITIAL === rs;
+    }
   },
 
   methods: {

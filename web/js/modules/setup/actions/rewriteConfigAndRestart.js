@@ -17,28 +17,29 @@
 import conf from "../../../common/conf.js";
 
 async function ping(start, resolve, reject) {
+  let resp = null;
   try {
-    const resp = await fetch("/api/restartStatus");
+    resp = await fetch("/api/restartStatus");
     await resp.json();
-    if (resp.ok) {
-      resolve(null);
+  } catch {
+    // ignore possible network error
+  }
+  if (resp?.ok) {
+    resolve(null);
+  } else {
+    if (Date.now() < start + conf().restartTimeoutMillis) {
+      setTimeout(() => ping(start, resolve, reject), 1000);
+    } else if (503 === resp?.status) {
+      reject(
+        "Service stop failed, please restart the service manually in SCM panel",
+      );
     } else {
-      if (Date.now() < start + conf().restartTimeoutMillis) {
-        setTimeout(() => ping(start, resolve, reject), 1000);
-      } else if (503 === resp.status) {
-        reject(
-          "Service stop failed, please restart the service manually in SCM panel",
-        );
-      } else {
-        reject(
-          "Service has stopped, but hasn't started," +
-            ` timeout: [${conf.restartTimeoutMillis / 1000}],` +
-            " please check the service status in SCM panel",
-        );
-      }
+      reject(
+        "Service has stopped, but hasn't started," +
+          ` timeout: [${conf().restartTimeoutMillis / 1000}],` +
+          " please check the service status in SCM panel",
+      );
     }
-  } catch (e) {
-    reject(String(e));
   }
 }
 
