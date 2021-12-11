@@ -45,9 +45,8 @@ export * as path from "https://deno.land/std@0.110.0/path/mod.ts";
 export { v4 as uuidv4 } from "https://deno.land/std@0.110.0/uuid/mod.ts";
 
 // dayjs
-//import dayjs from "https://deno.land/x/dayjs@v1.10.5/src/index.js";
-import dayjs from "https://cdn.skypack.dev/dayjs@1.10.5";
-import "https://cdn.skypack.dev/dayjs@1.10.5/locale/en";
+// @ts-ignore extension
+import dayjs from "https://deno.land/x/notranspile_dayjs@1.10.7-deno/index.js";
 export { dayjs };
 
 // yargs
@@ -55,13 +54,16 @@ export { dayjs };
 import yargs from "https://deno.land/x/yargs@v17.0.1-deno/deno.ts";
 export { yargs };
 
-// deno-js2xml
-import js2xml from "https://raw.githubusercontent.com/notranspile-js/deno-js2xml/1.0.0/js2xml.js";
-export { js2xml };
+// js2xml
+// @ts-ignore extension
+export { js2xml } from "https://deno.land/x/js2xml@1.0.2/mod.ts";
 
 // deno-simple-server
 // @ts-ignore extension
-export { SimpleServer, SimpleRequest } from "https://deno.land/x/simple_server@1.1.0/mod.ts";
+export {
+  SimpleRequest,
+  SimpleServer,
+} from "https://deno.land/x/simple_server@1.1.0/mod.ts";
 
 // deno-windows-scm
 // @ts-ignore extension

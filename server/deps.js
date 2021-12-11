@@ -1407,309 +1407,451 @@ const mod = await async function() {
         setup: setup
     };
 }();
-var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {
+const SECONDS_A_HOUR = 60 * 60;
+const SECONDS_A_DAY = SECONDS_A_HOUR * 24;
+const SECONDS_A_WEEK = SECONDS_A_DAY * 7;
+const MILLISECONDS_A_SECOND = 1000;
+const MILLISECONDS_A_MINUTE = 60 * 1000;
+const MILLISECONDS_A_HOUR = SECONDS_A_HOUR * 1000;
+const MILLISECONDS_A_DAY = SECONDS_A_DAY * 1000;
+const MILLISECONDS_A_WEEK = SECONDS_A_WEEK * 1000;
+const MS = 'millisecond';
+const S = 'second';
+const MIN = 'minute';
+const H = 'hour';
+const D = 'day';
+const W = 'week';
+const M = 'month';
+const Q = 'quarter';
+const Y = 'year';
+const DATE = 'date';
+const FORMAT_DEFAULT = 'YYYY-MM-DDTHH:mm:ssZ';
+const INVALID_DATE_STRING = 'Invalid Date';
+const REGEX_PARSE = /^(\d{4})[-/]?(\d{1,2})?[-/]?(\d{0,2})[Tt\s]*(\d{1,2})?:?(\d{1,2})?:?(\d{1,2})?[.:]?(\d+)?$/;
+const REGEX_FORMAT = /\[([^\]]+)]|Y{1,4}|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}|Z{1,2}|SSS/g;
+const __default = {
+    name: 'en',
+    weekdays: 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_'),
+    months: 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_')
 };
-function createCommonjsModule(fn, basedir, module) {
-    return module = {
-        path: basedir,
-        exports: {
-        },
-        require: function(path, base) {
-            return commonjsRequire(path, base === void 0 || base === null ? module.path : base);
+const padStart = (string, length, pad)=>{
+    const s = String(string);
+    if (!s || s.length >= length) return string;
+    return `${Array(length + 1 - s.length).join(pad)}${string}`;
+};
+const padZoneStr = (instance)=>{
+    const negMinutes = -instance.utcOffset();
+    const minutes = Math.abs(negMinutes);
+    const hourOffset = Math.floor(minutes / 60);
+    const minuteOffset = minutes % 60;
+    return `${negMinutes <= 0 ? '+' : '-'}${padStart(hourOffset, 2, '0')}:${padStart(minuteOffset, 2, '0')}`;
+};
+const monthDiff = (a, b)=>{
+    if (a.date() < b.date()) return -monthDiff(b, a);
+    const wholeMonthDiff = (b.year() - a.year()) * 12 + (b.month() - a.month());
+    const anchor = a.clone().add(wholeMonthDiff, M);
+    const c = b - anchor < 0;
+    const anchor2 = a.clone().add(wholeMonthDiff + (c ? -1 : 1), M);
+    return +(-(wholeMonthDiff + (b - anchor) / (c ? anchor - anchor2 : anchor2 - anchor)) || 0);
+};
+const absFloor = (n)=>n < 0 ? Math.ceil(n) || 0 : Math.floor(n)
+;
+const prettyUnit = (u)=>{
+    const special = {
+        M: M,
+        y: Y,
+        w: W,
+        d: D,
+        D: DATE,
+        h: H,
+        m: MIN,
+        s: S,
+        ms: MS,
+        Q: Q
+    };
+    return special[u] || String(u || '').toLowerCase().replace(/s$/, '');
+};
+const isUndefined = (s)=>s === undefined
+;
+const __default1 = {
+    s: padStart,
+    z: padZoneStr,
+    m: monthDiff,
+    a: absFloor,
+    p: prettyUnit,
+    u: isUndefined
+};
+let L = 'en';
+const Ls = {
+};
+Ls[L] = __default;
+const isDayjs = (d)=>d instanceof Dayjs
+;
+const parseLocale = (preset, object, isLocal)=>{
+    let l;
+    if (!preset) return L;
+    if (typeof preset === 'string') {
+        if (Ls[preset]) {
+            l = preset;
         }
-    }, fn(module, module.exports), module.exports;
-}
-function commonjsRequire() {
-    throw new Error("Dynamic requires are not currently supported by @rollup/plugin-commonjs");
-}
-var dayjs_min = createCommonjsModule(function(module, exports) {
-    !function(t, e) {
-        module.exports = e();
-    }(commonjsGlobal, function() {
-        var t = 1000, e = 60000, n = 3600000, r = "millisecond", i = "second", s = "minute", u = "hour", a = "day", o = "week", f = "month", h = "quarter", c = "year", d = "date", $ = "Invalid Date", l = /^(\d{4})[-/]?(\d{1,2})?[-/]?(\d{0,2})[^0-9]*(\d{1,2})?:?(\d{1,2})?:?(\d{1,2})?[.:]?(\d+)?$/, y = /\[([^\]]+)]|Y{1,4}|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}|Z{1,2}|SSS/g, M = {
-            name: "en",
-            weekdays: "Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday".split("_"),
-            months: "January_February_March_April_May_June_July_August_September_October_November_December".split("_")
-        }, m = function(t2, e2, n2) {
-            var r2 = String(t2);
-            return !r2 || r2.length >= e2 ? t2 : "" + Array(e2 + 1 - r2.length).join(n2) + t2;
-        }, g = {
-            s: m,
-            z: function(t2) {
-                var e2 = -t2.utcOffset(), n2 = Math.abs(e2), r2 = Math.floor(n2 / 60), i2 = n2 % 60;
-                return (e2 <= 0 ? "+" : "-") + m(r2, 2, "0") + ":" + m(i2, 2, "0");
-            },
-            m: function t2(e2, n2) {
-                if (e2.date() < n2.date()) return -t2(n2, e2);
-                var r2 = 12 * (n2.year() - e2.year()) + (n2.month() - e2.month()), i2 = e2.clone().add(r2, f), s2 = n2 - i2 < 0, u2 = e2.clone().add(r2 + (s2 ? -1 : 1), f);
-                return +(-(r2 + (n2 - i2) / (s2 ? i2 - u2 : u2 - i2)) || 0);
-            },
-            a: function(t2) {
-                return t2 < 0 ? Math.ceil(t2) || 0 : Math.floor(t2);
-            },
-            p: function(t2) {
-                return ({
-                    M: f,
-                    y: c,
-                    w: o,
-                    d: a,
-                    D: d,
-                    h: u,
-                    m: s,
-                    s: i,
-                    ms: r,
-                    Q: h
-                })[t2] || String(t2 || "").toLowerCase().replace(/s$/, "");
-            },
-            u: function(t2) {
-                return t2 === void 0;
+        if (object) {
+            Ls[preset] = object;
+            l = preset;
+        }
+    } else {
+        const { name  } = preset;
+        Ls[name] = preset;
+        l = name;
+    }
+    if (!isLocal && l) L = l;
+    return l || !isLocal && L;
+};
+const dayjs1 = function(date, c) {
+    if (isDayjs(date)) {
+        return date.clone();
+    }
+    const cfg = typeof c === 'object' ? c : {
+    };
+    cfg.date = date;
+    cfg.args = arguments;
+    return new Dayjs(cfg);
+};
+const wrapper = (date, instance)=>dayjs1(date, {
+        locale: instance.$L,
+        utc: instance.$u,
+        x: instance.$x,
+        $offset: instance.$offset
+    })
+;
+const Utils = __default1;
+Utils.l = parseLocale;
+Utils.i = isDayjs;
+Utils.w = wrapper;
+const parseDate = (cfg)=>{
+    const { date , utc  } = cfg;
+    if (date === null) return new Date(NaN);
+    if (__default1.u(date)) return new Date();
+    if (date instanceof Date) return new Date(date);
+    if (typeof date === 'string' && !/Z$/i.test(date)) {
+        const d = date.match(REGEX_PARSE);
+        if (d) {
+            const m = d[2] - 1 || 0;
+            const ms = (d[7] || '0').substring(0, 3);
+            if (utc) {
+                return new Date(Date.UTC(d[1], m, d[3] || 1, d[4] || 0, d[5] || 0, d[6] || 0, ms));
             }
-        }, D = "en", v = {
+            return new Date(d[1], m, d[3] || 1, d[4] || 0, d[5] || 0, d[6] || 0, ms);
+        }
+    }
+    return new Date(date);
+};
+class Dayjs {
+    constructor(cfg){
+        this.$L = parseLocale(cfg.locale, null, true);
+        this.parse(cfg);
+    }
+    parse(cfg) {
+        this.$d = parseDate(cfg);
+        this.$x = cfg.x || {
         };
-        v[D] = M;
-        var p2 = function(t2) {
-            return t2 instanceof _;
-        }, S = function(t2, e2, n2) {
-            var r2;
-            if (!t2) return D;
-            if (typeof t2 == "string") v[t2] && (r2 = t2), e2 && (v[t2] = e2, r2 = t2);
-            else {
-                var i2 = t2.name;
-                v[i2] = t2, r2 = i2;
-            }
-            return !n2 && r2 && (D = r2), r2 || !n2 && D;
-        }, w = function(t2, e2) {
-            if (p2(t2)) return t2.clone();
-            var n2 = typeof e2 == "object" ? e2 : {
-            };
-            return n2.date = t2, n2.args = arguments, new _(n2);
-        }, O = g;
-        O.l = S, O.i = p2, O.w = function(t2, e2) {
-            return w(t2, {
-                locale: e2.$L,
-                utc: e2.$u,
-                x: e2.$x,
-                $offset: e2.$offset
-            });
+        this.init();
+    }
+    init() {
+        const { $d  } = this;
+        this.$y = $d.getFullYear();
+        this.$M = $d.getMonth();
+        this.$D = $d.getDate();
+        this.$W = $d.getDay();
+        this.$H = $d.getHours();
+        this.$m = $d.getMinutes();
+        this.$s = $d.getSeconds();
+        this.$ms = $d.getMilliseconds();
+    }
+    $utils() {
+        return __default1;
+    }
+    isValid() {
+        return !(this.$d.toString() === INVALID_DATE_STRING);
+    }
+    isSame(that, units) {
+        const other = dayjs1(that);
+        return this.startOf(units) <= other && other <= this.endOf(units);
+    }
+    isAfter(that, units) {
+        return dayjs1(that) < this.startOf(units);
+    }
+    isBefore(that, units) {
+        return this.endOf(units) < dayjs1(that);
+    }
+    $g(input, get, set) {
+        if (__default1.u(input)) return this[get];
+        return this.set(set, input);
+    }
+    unix() {
+        return Math.floor(this.valueOf() / 1000);
+    }
+    valueOf() {
+        return this.$d.getTime();
+    }
+    startOf(units, startOf) {
+        const isStartOf = !__default1.u(startOf) ? startOf : true;
+        const unit = __default1.p(units);
+        const instanceFactory = (d, m)=>{
+            const ins = __default1.w(this.$u ? Date.UTC(this.$y, m, d) : new Date(this.$y, m, d), this);
+            return isStartOf ? ins : ins.endOf(D);
         };
-        var _ = function() {
-            function M2(t2) {
-                this.$L = S(t2.locale, null, true), this.parse(t2);
-            }
-            var m2 = M2.prototype;
-            return m2.parse = function(t2) {
-                this.$d = (function(t3) {
-                    var e2 = t3.date, n2 = t3.utc;
-                    if (e2 === null) return new Date(NaN);
-                    if (O.u(e2)) return new Date();
-                    if (e2 instanceof Date) return new Date(e2);
-                    if (typeof e2 == "string" && !/Z$/i.test(e2)) {
-                        var r2 = e2.match(l);
-                        if (r2) {
-                            var i2 = r2[2] - 1 || 0, s2 = (r2[7] || "0").substring(0, 3);
-                            return n2 ? new Date(Date.UTC(r2[1], i2, r2[3] || 1, r2[4] || 0, r2[5] || 0, r2[6] || 0, s2)) : new Date(r2[1], i2, r2[3] || 1, r2[4] || 0, r2[5] || 0, r2[6] || 0, s2);
-                        }
-                    }
-                    return new Date(e2);
-                })(t2), this.$x = t2.x || {
-                }, this.init();
-            }, m2.init = function() {
-                var t2 = this.$d;
-                this.$y = t2.getFullYear(), this.$M = t2.getMonth(), this.$D = t2.getDate(), this.$W = t2.getDay(), this.$H = t2.getHours(), this.$m = t2.getMinutes(), this.$s = t2.getSeconds(), this.$ms = t2.getMilliseconds();
-            }, m2.$utils = function() {
-                return O;
-            }, m2.isValid = function() {
-                return !(this.$d.toString() === $);
-            }, m2.isSame = function(t2, e2) {
-                var n2 = w(t2);
-                return this.startOf(e2) <= n2 && n2 <= this.endOf(e2);
-            }, m2.isAfter = function(t2, e2) {
-                return w(t2) < this.startOf(e2);
-            }, m2.isBefore = function(t2, e2) {
-                return this.endOf(e2) < w(t2);
-            }, m2.$g = function(t2, e2, n2) {
-                return O.u(t2) ? this[e2] : this.set(n2, t2);
-            }, m2.unix = function() {
-                return Math.floor(this.valueOf() / 1000);
-            }, m2.valueOf = function() {
-                return this.$d.getTime();
-            }, m2.startOf = function(t2, e2) {
-                var n2 = this, r2 = !!O.u(e2) || e2, h2 = O.p(t2), $2 = function(t3, e3) {
-                    var i2 = O.w(n2.$u ? Date.UTC(n2.$y, e3, t3) : new Date(n2.$y, e3, t3), n2);
-                    return r2 ? i2 : i2.endOf(a);
-                }, l2 = function(t3, e3) {
-                    return O.w(n2.toDate()[t3].apply(n2.toDate("s"), (r2 ? [
-                        0,
-                        0,
-                        0,
-                        0
-                    ] : [
-                        23,
-                        59,
-                        59,
-                        999
-                    ]).slice(e3)), n2);
-                }, y2 = this.$W, M3 = this.$M, m3 = this.$D, g2 = "set" + (this.$u ? "UTC" : "");
-                switch(h2){
-                    case c:
-                        return r2 ? $2(1, 0) : $2(31, 11);
-                    case f:
-                        return r2 ? $2(1, M3) : $2(0, M3 + 1);
-                    case o:
-                        var D2 = this.$locale().weekStart || 0, v2 = (y2 < D2 ? y2 + 7 : y2) - D2;
-                        return $2(r2 ? m3 - v2 : m3 + (6 - v2), M3);
-                    case a:
-                    case d:
-                        return l2(g2 + "Hours", 0);
-                    case u:
-                        return l2(g2 + "Minutes", 1);
-                    case s:
-                        return l2(g2 + "Seconds", 2);
-                    case i:
-                        return l2(g2 + "Milliseconds", 3);
-                    default:
-                        return this.clone();
+        const instanceFactorySet = (method, slice)=>{
+            const argumentStart = [
+                0,
+                0,
+                0,
+                0
+            ];
+            const argumentEnd = [
+                23,
+                59,
+                59,
+                999
+            ];
+            return __default1.w(this.toDate()[method].apply(this.toDate('s'), (isStartOf ? argumentStart : argumentEnd).slice(slice)), this);
+        };
+        const { $W , $M , $D  } = this;
+        const utcPad = `set${this.$u ? 'UTC' : ''}`;
+        switch(unit){
+            case Y:
+                return isStartOf ? instanceFactory(1, 0) : instanceFactory(31, 11);
+            case M:
+                return isStartOf ? instanceFactory(1, $M) : instanceFactory(0, $M + 1);
+            case W:
+                {
+                    const weekStart = this.$locale().weekStart || 0;
+                    const gap = ($W < weekStart ? $W + 7 : $W) - weekStart;
+                    return instanceFactory(isStartOf ? $D - gap : $D + (6 - gap), $M);
                 }
-            }, m2.endOf = function(t2) {
-                return this.startOf(t2, false);
-            }, m2.$set = function(t2, e2) {
-                var n2, o2 = O.p(t2), h2 = "set" + (this.$u ? "UTC" : ""), $2 = (n2 = {
-                }, n2[a] = h2 + "Date", n2[d] = h2 + "Date", n2[f] = h2 + "Month", n2[c] = h2 + "FullYear", n2[u] = h2 + "Hours", n2[s] = h2 + "Minutes", n2[i] = h2 + "Seconds", n2[r] = h2 + "Milliseconds", n2)[o2], l2 = o2 === a ? this.$D + (e2 - this.$W) : e2;
-                if (o2 === f || o2 === c) {
-                    var y2 = this.clone().set(d, 1);
-                    y2.$d[$2](l2), y2.init(), this.$d = y2.set(d, Math.min(this.$D, y2.daysInMonth())).$d;
-                } else $2 && this.$d[$2](l2);
-                return this.init(), this;
-            }, m2.set = function(t2, e2) {
-                return this.clone().$set(t2, e2);
-            }, m2.get = function(t2) {
-                return this[O.p(t2)]();
-            }, m2.add = function(r2, h2) {
-                var d2, $2 = this;
-                r2 = Number(r2);
-                var l2 = O.p(h2), y2 = function(t2) {
-                    var e2 = w($2);
-                    return O.w(e2.date(e2.date() + Math.round(t2 * r2)), $2);
-                };
-                if (l2 === f) return this.set(f, this.$M + r2);
-                if (l2 === c) return this.set(c, this.$y + r2);
-                if (l2 === a) return y2(1);
-                if (l2 === o) return y2(7);
-                var M3 = (d2 = {
-                }, d2[s] = e, d2[u] = n, d2[i] = t, d2)[l2] || 1, m3 = this.$d.getTime() + r2 * M3;
-                return O.w(m3, this);
-            }, m2.subtract = function(t2, e2) {
-                return this.add(-1 * t2, e2);
-            }, m2.format = function(t2) {
-                var e2 = this;
-                if (!this.isValid()) return $;
-                var n2 = t2 || "YYYY-MM-DDTHH:mm:ssZ", r2 = O.z(this), i2 = this.$locale(), s2 = this.$H, u2 = this.$m, a2 = this.$M, o2 = i2.weekdays, f2 = i2.months, h2 = function(t3, r3, i3, s3) {
-                    return t3 && (t3[r3] || t3(e2, n2)) || i3[r3].substr(0, s3);
-                }, c2 = function(t3) {
-                    return O.s(s2 % 12 || 12, t3, "0");
-                }, d2 = i2.meridiem || function(t3, e3, n3) {
-                    var r3 = t3 < 12 ? "AM" : "PM";
-                    return n3 ? r3.toLowerCase() : r3;
-                }, l2 = {
-                    YY: String(this.$y).slice(-2),
-                    YYYY: this.$y,
-                    M: a2 + 1,
-                    MM: O.s(a2 + 1, 2, "0"),
-                    MMM: h2(i2.monthsShort, a2, f2, 3),
-                    MMMM: h2(f2, a2),
-                    D: this.$D,
-                    DD: O.s(this.$D, 2, "0"),
-                    d: String(this.$W),
-                    dd: h2(i2.weekdaysMin, this.$W, o2, 2),
-                    ddd: h2(i2.weekdaysShort, this.$W, o2, 3),
-                    dddd: o2[this.$W],
-                    H: String(s2),
-                    HH: O.s(s2, 2, "0"),
-                    h: c2(1),
-                    hh: c2(2),
-                    a: d2(s2, u2, true),
-                    A: d2(s2, u2, false),
-                    m: String(u2),
-                    mm: O.s(u2, 2, "0"),
-                    s: String(this.$s),
-                    ss: O.s(this.$s, 2, "0"),
-                    SSS: O.s(this.$ms, 3, "0"),
-                    Z: r2
-                };
-                return n2.replace(y, function(t3, e3) {
-                    return e3 || l2[t3] || r2.replace(":", "");
-                });
-            }, m2.utcOffset = function() {
-                return 15 * -Math.round(this.$d.getTimezoneOffset() / 15);
-            }, m2.diff = function(r2, d2, $2) {
-                var l2, y2 = O.p(d2), M3 = w(r2), m3 = (M3.utcOffset() - this.utcOffset()) * e, g2 = this - M3, D2 = O.m(this, M3);
-                return D2 = (l2 = {
-                }, l2[c] = D2 / 12, l2[f] = D2, l2[h] = D2 / 3, l2[o] = (g2 - m3) / 604800000, l2[a] = (g2 - m3) / 86400000, l2[u] = g2 / n, l2[s] = g2 / e, l2[i] = g2 / t, l2)[y2] || g2, $2 ? D2 : O.a(D2);
-            }, m2.daysInMonth = function() {
-                return this.endOf(f).$D;
-            }, m2.$locale = function() {
-                return v[this.$L];
-            }, m2.locale = function(t2, e2) {
-                if (!t2) return this.$L;
-                var n2 = this.clone(), r2 = S(t2, e2, true);
-                return r2 && (n2.$L = r2), n2;
-            }, m2.clone = function() {
-                return O.w(this.$d, this);
-            }, m2.toDate = function() {
-                return new Date(this.valueOf());
-            }, m2.toJSON = function() {
-                return this.isValid() ? this.toISOString() : null;
-            }, m2.toISOString = function() {
-                return this.$d.toISOString();
-            }, m2.toString = function() {
-                return this.$d.toUTCString();
-            }, M2;
-        }(), b = _.prototype;
-        return w.prototype = b, [
-            [
-                "$ms",
-                r
-            ],
-            [
-                "$s",
-                i
-            ],
-            [
-                "$m",
-                s
-            ],
-            [
-                "$H",
-                u
-            ],
-            [
-                "$W",
-                a
-            ],
-            [
-                "$M",
-                f
-            ],
-            [
-                "$y",
-                c
-            ],
-            [
-                "$D",
-                d
-            ]
-        ].forEach(function(t2) {
-            b[t2[1]] = function(e2) {
-                return this.$g(e2, t2[0], t2[1]);
-            };
-        }), w.extend = function(t2, e2) {
-            return t2.$i || (t2(e2, _, w), t2.$i = true), w;
-        }, w.locale = S, w.isDayjs = p2, w.unix = function(t2) {
-            return w(1000 * t2);
-        }, w.en = v[D], w.Ls = v, w.p = {
-        }, w;
-    });
+            case D:
+            case DATE:
+                return instanceFactorySet(`${utcPad}Hours`, 0);
+            case H:
+                return instanceFactorySet(`${utcPad}Minutes`, 1);
+            case MIN:
+                return instanceFactorySet(`${utcPad}Seconds`, 2);
+            case S:
+                return instanceFactorySet(`${utcPad}Milliseconds`, 3);
+            default:
+                return this.clone();
+        }
+    }
+    endOf(arg) {
+        return this.startOf(arg, false);
+    }
+    $set(units, __int) {
+        const unit = __default1.p(units);
+        const utcPad = `set${this.$u ? 'UTC' : ''}`;
+        const name = {
+            [D]: `${utcPad}Date`,
+            [DATE]: `${utcPad}Date`,
+            [M]: `${utcPad}Month`,
+            [Y]: `${utcPad}FullYear`,
+            [H]: `${utcPad}Hours`,
+            [MIN]: `${utcPad}Minutes`,
+            [S]: `${utcPad}Seconds`,
+            [MS]: `${utcPad}Milliseconds`
+        }[unit];
+        const arg = unit === D ? this.$D + (__int - this.$W) : __int;
+        if (unit === M || unit === Y) {
+            const date = this.clone().set(DATE, 1);
+            date.$d[name](arg);
+            date.init();
+            this.$d = date.set(DATE, Math.min(this.$D, date.daysInMonth())).$d;
+        } else if (name) this.$d[name](arg);
+        this.init();
+        return this;
+    }
+    set(string, __int) {
+        return this.clone().$set(string, __int);
+    }
+    get(unit) {
+        return this[__default1.p(unit)]();
+    }
+    add(number, units) {
+        number = Number(number);
+        const unit = __default1.p(units);
+        const instanceFactorySet = (n)=>{
+            const d = dayjs1(this);
+            return __default1.w(d.date(d.date() + Math.round(n * number)), this);
+        };
+        if (unit === M) {
+            return this.set(M, this.$M + number);
+        }
+        if (unit === Y) {
+            return this.set(Y, this.$y + number);
+        }
+        if (unit === D) {
+            return instanceFactorySet(1);
+        }
+        if (unit === W) {
+            return instanceFactorySet(7);
+        }
+        const step = {
+            [MIN]: MILLISECONDS_A_MINUTE,
+            [H]: MILLISECONDS_A_HOUR,
+            [S]: 1000
+        }[unit] || 1;
+        const nextTimeStamp = this.$d.getTime() + number * step;
+        return __default1.w(nextTimeStamp, this);
+    }
+    subtract(number, string) {
+        return this.add(number * -1, string);
+    }
+    format(formatStr) {
+        const locale = this.$locale();
+        if (!this.isValid()) return locale.invalidDate || INVALID_DATE_STRING;
+        const str = formatStr || FORMAT_DEFAULT;
+        const zoneStr = __default1.z(this);
+        const { $H , $m , $M  } = this;
+        const { weekdays , months , meridiem  } = locale;
+        const getShort = (arr, index, full, length)=>arr && (arr[index] || arr(this, str)) || full[index].substr(0, length)
+        ;
+        const get$H = (num)=>__default1.s($H % 12 || 12, num, '0')
+        ;
+        const meridiemFunc = meridiem || ((hour, minute, isLowercase)=>{
+            const m = hour < 12 ? 'AM' : 'PM';
+            return isLowercase ? m.toLowerCase() : m;
+        });
+        const matches = {
+            YY: String(this.$y).slice(-2),
+            YYYY: this.$y,
+            M: $M + 1,
+            MM: __default1.s($M + 1, 2, '0'),
+            MMM: getShort(locale.monthsShort, $M, months, 3),
+            MMMM: getShort(months, $M),
+            D: this.$D,
+            DD: __default1.s(this.$D, 2, '0'),
+            d: String(this.$W),
+            dd: getShort(locale.weekdaysMin, this.$W, weekdays, 2),
+            ddd: getShort(locale.weekdaysShort, this.$W, weekdays, 3),
+            dddd: weekdays[this.$W],
+            H: String($H),
+            HH: __default1.s($H, 2, '0'),
+            h: get$H(1),
+            hh: get$H(2),
+            a: meridiemFunc($H, $m, true),
+            A: meridiemFunc($H, $m, false),
+            m: String($m),
+            mm: __default1.s($m, 2, '0'),
+            s: String(this.$s),
+            ss: __default1.s(this.$s, 2, '0'),
+            SSS: __default1.s(this.$ms, 3, '0'),
+            Z: zoneStr
+        };
+        return str.replace(REGEX_FORMAT, (match, $1)=>$1 || matches[match] || zoneStr.replace(':', '')
+        );
+    }
+    utcOffset() {
+        return -Math.round(this.$d.getTimezoneOffset() / 15) * 15;
+    }
+    diff(input, units, __float) {
+        const unit = __default1.p(units);
+        const that = dayjs1(input);
+        const zoneDelta = (that.utcOffset() - this.utcOffset()) * MILLISECONDS_A_MINUTE;
+        const diff = this - that;
+        let result = __default1.m(this, that);
+        result = ({
+            [Y]: result / 12,
+            [M]: result,
+            [Q]: result / 3,
+            [W]: (diff - zoneDelta) / MILLISECONDS_A_WEEK,
+            [D]: (diff - zoneDelta) / MILLISECONDS_A_DAY,
+            [H]: diff / MILLISECONDS_A_HOUR,
+            [MIN]: diff / MILLISECONDS_A_MINUTE,
+            [S]: diff / MILLISECONDS_A_SECOND
+        })[unit] || diff;
+        return __float ? result : __default1.a(result);
+    }
+    daysInMonth() {
+        return this.endOf(M).$D;
+    }
+    $locale() {
+        return Ls[this.$L];
+    }
+    locale(preset, object) {
+        if (!preset) return this.$L;
+        const that = this.clone();
+        const nextLocaleName = parseLocale(preset, object, true);
+        if (nextLocaleName) that.$L = nextLocaleName;
+        return that;
+    }
+    clone() {
+        return __default1.w(this.$d, this);
+    }
+    toDate() {
+        return new Date(this.valueOf());
+    }
+    toJSON() {
+        return this.isValid() ? this.toISOString() : null;
+    }
+    toISOString() {
+        return this.$d.toISOString();
+    }
+    toString() {
+        return this.$d.toUTCString();
+    }
+}
+const proto = Dayjs.prototype;
+dayjs1.prototype = proto;
+[
+    [
+        '$ms',
+        MS
+    ],
+    [
+        '$s',
+        S
+    ],
+    [
+        '$m',
+        MIN
+    ],
+    [
+        '$H',
+        H
+    ],
+    [
+        '$W',
+        D
+    ],
+    [
+        '$M',
+        M
+    ],
+    [
+        '$y',
+        Y
+    ],
+    [
+        '$D',
+        DATE
+    ]
+].forEach((g)=>{
+    proto[g[1]] = function(input) {
+        return this.$g(input, g[0], g[1]);
+    };
 });
+dayjs1.extend = (plugin, option)=>{
+    if (!plugin.$i) {
+        plugin(option, Dayjs, dayjs1);
+        plugin.$i = true;
+    }
+    return dayjs1;
+};
+dayjs1.locale = parseLocale;
+dayjs1.isDayjs = isDayjs;
+dayjs1.unix = (timestamp)=>dayjs1(timestamp * 1000)
+;
+dayjs1.en = Ls[L];
+dayjs1.Ls = Ls;
+dayjs1.p = {
+};
 const noColor1 = globalThis.Deno?.noColor ?? true;
 let enabled1 = !noColor1;
 function code1(open, close) {
@@ -3493,7 +3635,7 @@ function toItems(dir) {
     }
     return list;
 }
-function __default(start, callback) {
+function __default2(start, callback) {
     let dir = resolve2('.', start);
     let stats = Deno.statSync(dir);
     if (!stats.isDirectory) {
@@ -5165,7 +5307,7 @@ function sprintf(format, ...args) {
     const printf = new Printf(format, ...args);
     return printf.doPrintf();
 }
-const __default1 = {
+const __default3 = {
     fs: {
         readFileSync: (path)=>{
             try {
@@ -5193,7 +5335,7 @@ const __default1 = {
     }
 };
 const y18n1 = (opts)=>{
-    return y18n(opts, __default1);
+    return y18n(opts, __default3);
 };
 class YError extends Error {
     constructor(msg1){
@@ -5240,13 +5382,13 @@ const path1 = {
     },
     resolve: mod2.resolve
 };
-const __default2 = {
+const __default4 = {
     assert: {
         notStrictEqual: assertNotEquals,
         strictEqual: assertStrictEquals
     },
     cliui: ui,
-    findUp: __default,
+    findUp: __default2,
     getEnv: (key)=>{
         return env[key];
     },
@@ -8612,364 +8754,7 @@ function isSyncCompletionFunction(completionFunction) {
 function isFallbackCompletionFunction(completionFunction) {
     return completionFunction.length > 3;
 }
-const Yargs = YargsFactory(__default2);
-const __default3 = {
-    copyOptions: function(options) {
-        var key, copy = {
-        };
-        for(key in options){
-            if (options.hasOwnProperty(key)) {
-                copy[key] = options[key];
-            }
-        }
-        return copy;
-    },
-    ensureFlagExists: function(item, options) {
-        if (!(item in options) || typeof options[item] !== 'boolean') {
-            options[item] = false;
-        }
-    },
-    ensureSpacesExists: function(options) {
-        if (!('spaces' in options) || typeof options.spaces !== 'number' && typeof options.spaces !== 'string') {
-            options.spaces = 0;
-        }
-    },
-    ensureAlwaysArrayExists: function(options) {
-        if (!('alwaysArray' in options) || typeof options.alwaysArray !== 'boolean' && !Array.isArray(options.alwaysArray)) {
-            options.alwaysArray = false;
-        }
-    },
-    ensureKeyExists: function(key, options) {
-        if (!(key + 'Key' in options) || typeof options[key + 'Key'] !== 'string') {
-            options[key + 'Key'] = options.compact ? '_' + key : key;
-        }
-    },
-    checkFnExists: function(key, options) {
-        return key + 'Fn' in options;
-    }
-};
-var currentElement, currentElementName;
-function validateOptions(userOptions) {
-    var options = __default3.copyOptions(userOptions);
-    __default3.ensureFlagExists('ignoreDeclaration', options);
-    __default3.ensureFlagExists('ignoreInstruction', options);
-    __default3.ensureFlagExists('ignoreAttributes', options);
-    __default3.ensureFlagExists('ignoreText', options);
-    __default3.ensureFlagExists('ignoreComment', options);
-    __default3.ensureFlagExists('ignoreCdata', options);
-    __default3.ensureFlagExists('ignoreDoctype', options);
-    __default3.ensureFlagExists('compact', options);
-    __default3.ensureFlagExists('indentText', options);
-    __default3.ensureFlagExists('indentCdata', options);
-    __default3.ensureFlagExists('indentAttributes', options);
-    __default3.ensureFlagExists('indentInstruction', options);
-    __default3.ensureFlagExists('fullTagEmptyElement', options);
-    __default3.ensureFlagExists('noQuotesForNativeAttributes', options);
-    __default3.ensureSpacesExists(options);
-    if (typeof options.spaces === 'number') {
-        options.spaces = Array(options.spaces + 1).join(' ');
-    }
-    __default3.ensureKeyExists('declaration', options);
-    __default3.ensureKeyExists('instruction', options);
-    __default3.ensureKeyExists('attributes', options);
-    __default3.ensureKeyExists('text', options);
-    __default3.ensureKeyExists('comment', options);
-    __default3.ensureKeyExists('cdata', options);
-    __default3.ensureKeyExists('doctype', options);
-    __default3.ensureKeyExists('type', options);
-    __default3.ensureKeyExists('name', options);
-    __default3.ensureKeyExists('elements', options);
-    __default3.checkFnExists('doctype', options);
-    __default3.checkFnExists('instruction', options);
-    __default3.checkFnExists('cdata', options);
-    __default3.checkFnExists('comment', options);
-    __default3.checkFnExists('text', options);
-    __default3.checkFnExists('instructionName', options);
-    __default3.checkFnExists('elementName', options);
-    __default3.checkFnExists('attributeName', options);
-    __default3.checkFnExists('attributeValue', options);
-    __default3.checkFnExists('attributes', options);
-    __default3.checkFnExists('fullTagEmptyElement', options);
-    return options;
-}
-function writeIndentation(options, depth, firstLine) {
-    return (!firstLine && options.spaces ? '\n' : '') + Array(depth + 1).join(options.spaces);
-}
-function writeAttributes(attributes, options, depth) {
-    if (options.ignoreAttributes) {
-        return '';
-    }
-    if ('attributesFn' in options) {
-        attributes = options.attributesFn(attributes, currentElementName, currentElement);
-    }
-    var key, attr, attrName, quote, result = [];
-    for(key in attributes){
-        if (attributes.hasOwnProperty(key) && attributes[key] !== null && attributes[key] !== undefined) {
-            quote = options.noQuotesForNativeAttributes && typeof attributes[key] !== 'string' ? '' : '"';
-            attr = '' + attributes[key];
-            attr = attr.replace(/"/g, '&quot;');
-            attrName = 'attributeNameFn' in options ? options.attributeNameFn(key, attr, currentElementName, currentElement) : key;
-            result.push(options.spaces && options.indentAttributes ? writeIndentation(options, depth + 1, false) : ' ');
-            result.push(attrName + '=' + quote + ('attributeValueFn' in options ? options.attributeValueFn(attr, key, currentElementName, currentElement) : attr) + quote);
-        }
-    }
-    if (attributes && Object.keys(attributes).length && options.spaces && options.indentAttributes) {
-        result.push(writeIndentation(options, depth, false));
-    }
-    return result.join('');
-}
-function writeDeclaration(declaration, options, depth) {
-    currentElement = declaration;
-    currentElementName = 'xml';
-    return options.ignoreDeclaration ? '' : '<?' + 'xml' + writeAttributes(declaration[options.attributesKey], options, depth) + '?>';
-}
-function writeInstruction(instruction, options, depth) {
-    if (options.ignoreInstruction) {
-        return '';
-    }
-    var key;
-    for(key in instruction){
-        if (instruction.hasOwnProperty(key)) {
-            break;
-        }
-    }
-    var instructionName = 'instructionNameFn' in options ? options.instructionNameFn(key, instruction[key], currentElementName, currentElement) : key;
-    if (typeof instruction[key] === 'object') {
-        currentElement = instruction;
-        currentElementName = instructionName;
-        return '<?' + instructionName + writeAttributes(instruction[key][options.attributesKey], options, depth) + '?>';
-    } else {
-        var instructionValue = instruction[key] ? instruction[key] : '';
-        if ('instructionFn' in options) instructionValue = options.instructionFn(instructionValue, key, currentElementName, currentElement);
-        return '<?' + instructionName + (instructionValue ? ' ' + instructionValue : '') + '?>';
-    }
-}
-function writeComment(comment, options) {
-    return options.ignoreComment ? '' : '<!--' + ('commentFn' in options ? options.commentFn(comment, currentElementName, currentElement) : comment) + '-->';
-}
-function writeCdata(cdata, options) {
-    return options.ignoreCdata ? '' : '<![CDATA[' + ('cdataFn' in options ? options.cdataFn(cdata, currentElementName, currentElement) : cdata.replace(']]>', ']]]]><![CDATA[>')) + ']]>';
-}
-function writeDoctype(doctype, options) {
-    return options.ignoreDoctype ? '' : '<!DOCTYPE ' + ('doctypeFn' in options ? options.doctypeFn(doctype, currentElementName, currentElement) : doctype) + '>';
-}
-function writeText(text, options) {
-    if (options.ignoreText) return '';
-    text = '' + text;
-    text = text.replace(/&amp;/g, '&');
-    text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return 'textFn' in options ? options.textFn(text, currentElementName, currentElement) : text;
-}
-function hasContent(element, options) {
-    var i;
-    if (element.elements && element.elements.length) {
-        for(i = 0; i < element.elements.length; ++i){
-            switch(element.elements[i][options.typeKey]){
-                case 'text':
-                    if (options.indentText) {
-                        return true;
-                    }
-                    break;
-                case 'cdata':
-                    if (options.indentCdata) {
-                        return true;
-                    }
-                    break;
-                case 'instruction':
-                    if (options.indentInstruction) {
-                        return true;
-                    }
-                    break;
-                case 'doctype':
-                case 'comment':
-                case 'element':
-                    return true;
-                default:
-                    return true;
-            }
-        }
-    }
-    return false;
-}
-function writeElement(element, options, depth) {
-    currentElement = element;
-    currentElementName = element.name;
-    var xml = [], elementName = 'elementNameFn' in options ? options.elementNameFn(element.name, element) : element.name;
-    xml.push('<' + elementName);
-    if (element[options.attributesKey]) {
-        xml.push(writeAttributes(element[options.attributesKey], options, depth));
-    }
-    var withClosingTag = element[options.elementsKey] && element[options.elementsKey].length || element[options.attributesKey] && element[options.attributesKey]['xml:space'] === 'preserve';
-    if (!withClosingTag) {
-        if ('fullTagEmptyElementFn' in options) {
-            withClosingTag = options.fullTagEmptyElementFn(element.name, element);
-        } else {
-            withClosingTag = options.fullTagEmptyElement;
-        }
-    }
-    if (withClosingTag) {
-        xml.push('>');
-        if (element[options.elementsKey] && element[options.elementsKey].length) {
-            xml.push(writeElements(element[options.elementsKey], options, depth + 1));
-            currentElement = element;
-            currentElementName = element.name;
-        }
-        xml.push(options.spaces && hasContent(element, options) ? '\n' + Array(depth + 1).join(options.spaces) : '');
-        xml.push('</' + elementName + '>');
-    } else {
-        xml.push('/>');
-    }
-    return xml.join('');
-}
-function writeElements(elements, options, depth, firstLine) {
-    return elements.reduce(function(xml, element) {
-        var indent = writeIndentation(options, depth, firstLine && !xml);
-        switch(element.type){
-            case 'element':
-                return xml + indent + writeElement(element, options, depth);
-            case 'comment':
-                return xml + indent + writeComment(element[options.commentKey], options);
-            case 'doctype':
-                return xml + indent + writeDoctype(element[options.doctypeKey], options);
-            case 'cdata':
-                return xml + (options.indentCdata ? indent : '') + writeCdata(element[options.cdataKey], options);
-            case 'text':
-                return xml + (options.indentText ? indent : '') + writeText(element[options.textKey], options);
-            case 'instruction':
-                var instruction = {
-                };
-                instruction[element[options.nameKey]] = element[options.attributesKey] ? element : element[options.instructionKey];
-                return xml + (options.indentInstruction ? indent : '') + writeInstruction(instruction, options, depth);
-        }
-    }, '');
-}
-function hasContentCompact(element, options, anyContent) {
-    var key;
-    for(key in element){
-        if (element.hasOwnProperty(key)) {
-            switch(key){
-                case options.parentKey:
-                case options.attributesKey: break;
-                case options.textKey:
-                    if (options.indentText || anyContent) {
-                        return true;
-                    }
-                    break;
-                case options.cdataKey:
-                    if (options.indentCdata || anyContent) {
-                        return true;
-                    }
-                    break;
-                case options.instructionKey:
-                    if (options.indentInstruction || anyContent) {
-                        return true;
-                    }
-                    break;
-                case options.doctypeKey:
-                case options.commentKey:
-                    return true;
-                default:
-                    return true;
-            }
-        }
-    }
-    return false;
-}
-function writeElementCompact(element, name, options, depth, indent) {
-    currentElement = element;
-    currentElementName = name;
-    var elementName = 'elementNameFn' in options ? options.elementNameFn(name, element) : name;
-    if (typeof element === 'undefined' || element === null || element === '') {
-        return 'fullTagEmptyElementFn' in options && options.fullTagEmptyElementFn(name, element) || options.fullTagEmptyElement ? '<' + elementName + '></' + elementName + '>' : '<' + elementName + '/>';
-    }
-    var xml = [];
-    if (name) {
-        xml.push('<' + elementName);
-        if (typeof element !== 'object') {
-            xml.push('>' + writeText(element, options) + '</' + elementName + '>');
-            return xml.join('');
-        }
-        if (element[options.attributesKey]) {
-            xml.push(writeAttributes(element[options.attributesKey], options, depth));
-        }
-        var withClosingTag = hasContentCompact(element, options, true) || element[options.attributesKey] && element[options.attributesKey]['xml:space'] === 'preserve';
-        if (!withClosingTag) {
-            if ('fullTagEmptyElementFn' in options) {
-                withClosingTag = options.fullTagEmptyElementFn(name, element);
-            } else {
-                withClosingTag = options.fullTagEmptyElement;
-            }
-        }
-        if (withClosingTag) {
-            xml.push('>');
-        } else {
-            xml.push('/>');
-            return xml.join('');
-        }
-    }
-    xml.push(writeElementsCompact(element, options, depth + 1, false));
-    currentElement = element;
-    currentElementName = name;
-    if (name) {
-        xml.push((indent ? writeIndentation(options, depth, false) : '') + '</' + elementName + '>');
-    }
-    return xml.join('');
-}
-function writeElementsCompact(element, options, depth, firstLine) {
-    var i, key, nodes, xml = [];
-    for(key in element){
-        if (element.hasOwnProperty(key)) {
-            nodes = Array.isArray(element[key]) ? element[key] : [
-                element[key]
-            ];
-            for(i = 0; i < nodes.length; ++i){
-                switch(key){
-                    case options.declarationKey:
-                        xml.push(writeDeclaration(nodes[i], options, depth));
-                        break;
-                    case options.instructionKey:
-                        xml.push((options.indentInstruction ? writeIndentation(options, depth, firstLine) : '') + writeInstruction(nodes[i], options, depth));
-                        break;
-                    case options.attributesKey:
-                    case options.parentKey: break;
-                    case options.textKey:
-                        xml.push((options.indentText ? writeIndentation(options, depth, firstLine) : '') + writeText(nodes[i], options));
-                        break;
-                    case options.cdataKey:
-                        xml.push((options.indentCdata ? writeIndentation(options, depth, firstLine) : '') + writeCdata(nodes[i], options));
-                        break;
-                    case options.doctypeKey:
-                        xml.push(writeIndentation(options, depth, firstLine) + writeDoctype(nodes[i], options));
-                        break;
-                    case options.commentKey:
-                        xml.push(writeIndentation(options, depth, firstLine) + writeComment(nodes[i], options));
-                        break;
-                    default:
-                        xml.push(writeIndentation(options, depth, firstLine) + writeElementCompact(nodes[i], key, options, depth, hasContentCompact(nodes[i], options)));
-                }
-                firstLine = firstLine && !xml.length;
-            }
-        }
-    }
-    return xml.join('');
-}
-function __default4(js, options) {
-    options = validateOptions(options);
-    var xml = [];
-    currentElement = js;
-    currentElementName = '_root_';
-    if (options.compact) {
-        xml.push(writeElementsCompact(js, options, 0, true));
-    } else {
-        if (js[options.declarationKey]) {
-            xml.push(writeDeclaration(js[options.declarationKey], options, 0));
-        }
-        if (js[options.elementsKey] && js[options.elementsKey].length) {
-            xml.push(writeElements(js[options.elementsKey], options, 0, !xml.length));
-        }
-    }
-    return xml.join('');
-}
+const Yargs = YargsFactory(__default4);
 const osType1 = (()=>{
     const { Deno  } = globalThis;
     if (typeof Deno?.build?.os === "string") {
@@ -11493,6 +11278,340 @@ const mod8 = function() {
         generate: generate
     };
 }();
+const __default5 = {
+    copyOptions: function(options) {
+        const copy = {
+        };
+        for(const key in options){
+            if (options.hasOwnProperty(key)) {
+                copy[key] = options[key];
+            }
+        }
+        return copy;
+    },
+    ensureFlagExists: function(item, options) {
+        if (!(item in options) || typeof options[item] !== "boolean") {
+            options[item] = false;
+        }
+    },
+    ensureSpacesExists: function(options) {
+        if (!("spaces" in options) || typeof options.spaces !== "number" && typeof options.spaces !== "string") {
+            options.spaces = 0;
+        }
+    },
+    ensureAlwaysArrayExists: function(options) {
+        if (!("alwaysArray" in options) || typeof options.alwaysArray !== "boolean" && !Array.isArray(options.alwaysArray)) {
+            options.alwaysArray = false;
+        }
+    },
+    ensureKeyExists: function(key, options) {
+        if (!(key + "Key" in options) || typeof options[key + "Key"] !== "string") {
+            options[key + "Key"] = options.compact ? "_" + key : key;
+        }
+    }
+};
+let currentElement, currentElementName;
+function validateOptions(userOptions) {
+    const options = __default5.copyOptions(userOptions);
+    __default5.ensureFlagExists("ignoreDeclaration", options);
+    __default5.ensureFlagExists("ignoreInstruction", options);
+    __default5.ensureFlagExists("ignoreAttributes", options);
+    __default5.ensureFlagExists("ignoreText", options);
+    __default5.ensureFlagExists("ignoreComment", options);
+    __default5.ensureFlagExists("ignoreCdata", options);
+    __default5.ensureFlagExists("ignoreDoctype", options);
+    __default5.ensureFlagExists("compact", options);
+    __default5.ensureFlagExists("indentText", options);
+    __default5.ensureFlagExists("indentCdata", options);
+    __default5.ensureFlagExists("indentAttributes", options);
+    __default5.ensureFlagExists("indentInstruction", options);
+    __default5.ensureFlagExists("fullTagEmptyElement", options);
+    __default5.ensureFlagExists("noQuotesForNativeAttributes", options);
+    __default5.ensureSpacesExists(options);
+    if (typeof options.spaces === "number") {
+        options.spaces = Array(options.spaces + 1).join(" ");
+    }
+    __default5.ensureKeyExists("declaration", options);
+    __default5.ensureKeyExists("instruction", options);
+    __default5.ensureKeyExists("attributes", options);
+    __default5.ensureKeyExists("text", options);
+    __default5.ensureKeyExists("comment", options);
+    __default5.ensureKeyExists("cdata", options);
+    __default5.ensureKeyExists("doctype", options);
+    __default5.ensureKeyExists("type", options);
+    __default5.ensureKeyExists("name", options);
+    __default5.ensureKeyExists("elements", options);
+    return options;
+}
+function writeIndentation(options, depth, firstLine) {
+    return (!firstLine && options.spaces ? "\n" : "") + Array(depth + 1).join(options.spaces);
+}
+function writeAttributes(attributes, options, depth) {
+    if (options.ignoreAttributes) {
+        return "";
+    }
+    let key, attr, attrName, quote;
+    const result = [];
+    for(key in attributes){
+        if (attributes.hasOwnProperty(key) && attributes[key] !== null && attributes[key] !== undefined) {
+            quote = options.noQuotesForNativeAttributes && typeof attributes[key] !== "string" ? "" : '"';
+            attr = "" + attributes[key];
+            attr = attr.replace(/"/g, "&quot;");
+            attrName = key;
+            result.push(options.spaces && options.indentAttributes ? writeIndentation(options, depth + 1, false) : " ");
+            result.push(attrName + "=" + quote + attr + quote);
+        }
+    }
+    if (attributes && Object.keys(attributes).length && options.spaces && options.indentAttributes) {
+        result.push(writeIndentation(options, depth, false));
+    }
+    return result.join("");
+}
+function writeDeclaration(declaration, options, depth) {
+    currentElement = declaration;
+    currentElementName = "xml";
+    return options.ignoreDeclaration ? "" : "<?" + "xml" + writeAttributes(declaration[options.attributesKey], options, depth) + "?>";
+}
+function writeInstruction(instruction, options, depth) {
+    if (options.ignoreInstruction) {
+        return "";
+    }
+    let key;
+    for(key in instruction){
+        if (instruction.hasOwnProperty(key)) {
+            break;
+        }
+    }
+    const instructionName = key;
+    if (typeof instruction[key] === "object") {
+        currentElement = instruction;
+        currentElementName = instructionName;
+        return "<?" + instructionName + writeAttributes(instruction[key][options.attributesKey], options, depth) + "?>";
+    } else {
+        const instructionValue = instruction[key] ? instruction[key] : "";
+        return "<?" + instructionName + (instructionValue ? " " + instructionValue : "") + "?>";
+    }
+}
+function writeComment(comment, options) {
+    return options.ignoreComment ? "" : "<!--" + comment + "-->";
+}
+function writeCdata(cdata, options) {
+    return options.ignoreCdata ? "" : "<![CDATA[" + cdata.replace("]]>", "]]]]><![CDATA[>") + "]]>";
+}
+function writeDoctype(doctype, options) {
+    return options.ignoreDoctype ? "" : "<!DOCTYPE " + doctype + ">";
+}
+function writeText(text, options) {
+    if (options.ignoreText) return "";
+    text = "" + text;
+    text = text.replace(/&amp;/g, "&");
+    text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return text;
+}
+function hasContent(element, options) {
+    let i;
+    if (element.elements && element.elements.length) {
+        for(i = 0; i < element.elements.length; ++i){
+            switch(element.elements[i][options.typeKey]){
+                case "text":
+                    if (options.indentText) {
+                        return true;
+                    }
+                    break;
+                case "cdata":
+                    if (options.indentCdata) {
+                        return true;
+                    }
+                    break;
+                case "instruction":
+                    if (options.indentInstruction) {
+                        return true;
+                    }
+                    break;
+                case "doctype":
+                case "comment":
+                case "element":
+                    return true;
+                default:
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+function writeElement(element, options, depth) {
+    currentElement = element;
+    currentElementName = element.name;
+    const xml = [], elementName = element.name;
+    xml.push("<" + elementName);
+    if (element[options.attributesKey]) {
+        xml.push(writeAttributes(element[options.attributesKey], options, depth));
+    }
+    let withClosingTag = element[options.elementsKey] && element[options.elementsKey].length || element[options.attributesKey] && element[options.attributesKey]["xml:space"] === "preserve";
+    if (!withClosingTag) {
+        withClosingTag = options.fullTagEmptyElement;
+    }
+    if (withClosingTag) {
+        xml.push(">");
+        if (element[options.elementsKey] && element[options.elementsKey].length) {
+            xml.push(writeElements(element[options.elementsKey], options, depth + 1, false));
+            currentElement = element;
+            currentElementName = element.name;
+        }
+        xml.push(options.spaces && hasContent(element, options) ? "\n" + Array(depth + 1).join(options.spaces) : "");
+        xml.push("</" + elementName + ">");
+    } else {
+        xml.push("/>");
+    }
+    return xml.join("");
+}
+function writeElements(elements, options, depth, firstLine) {
+    return elements.reduce(function(xml, element) {
+        const indent = writeIndentation(options, depth, firstLine && !xml);
+        switch(element.type){
+            case "element":
+                return xml + indent + writeElement(element, options, depth);
+            case "comment":
+                return xml + indent + writeComment(element[options.commentKey], options);
+            case "doctype":
+                return xml + indent + writeDoctype(element[options.doctypeKey], options);
+            case "cdata":
+                return xml + (options.indentCdata ? indent : "") + writeCdata(element[options.cdataKey], options);
+            case "text":
+                return xml + (options.indentText ? indent : "") + writeText(element[options.textKey], options);
+            case "instruction":
+                {
+                    const instruction = {
+                    };
+                    instruction[element[options.nameKey]] = element[options.attributesKey] ? element : element[options.instructionKey];
+                    return xml + (options.indentInstruction ? indent : "") + writeInstruction(instruction, options, depth);
+                }
+        }
+    }, "");
+}
+function hasContentCompact(element, options, anyContent) {
+    let key;
+    for(key in element){
+        if (element.hasOwnProperty(key)) {
+            switch(key){
+                case options.parentKey:
+                case options.attributesKey: break;
+                case options.textKey:
+                    if (options.indentText || anyContent) {
+                        return true;
+                    }
+                    break;
+                case options.cdataKey:
+                    if (options.indentCdata || anyContent) {
+                        return true;
+                    }
+                    break;
+                case options.instructionKey:
+                    if (options.indentInstruction || anyContent) {
+                        return true;
+                    }
+                    break;
+                case options.doctypeKey:
+                case options.commentKey:
+                    return true;
+                default:
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+function writeElementCompact(element, name, options, depth, indent) {
+    currentElement = element;
+    currentElementName = name;
+    const elementName = name;
+    if (typeof element === "undefined" || element === null || element === "") {
+        return options.fullTagEmptyElement ? "<" + elementName + "></" + elementName + ">" : "<" + elementName + "/>";
+    }
+    const xml = [];
+    if (name) {
+        xml.push("<" + elementName);
+        if (typeof element !== "object") {
+            xml.push(">" + writeText(element, options) + "</" + elementName + ">");
+            return xml.join("");
+        }
+        if (element[options.attributesKey]) {
+            xml.push(writeAttributes(element[options.attributesKey], options, depth));
+        }
+        let withClosingTag = hasContentCompact(element, options, true) || element[options.attributesKey] && element[options.attributesKey]["xml:space"] === "preserve";
+        if (!withClosingTag) {
+            withClosingTag = options.fullTagEmptyElement;
+        }
+        if (withClosingTag) {
+            xml.push(">");
+        } else {
+            xml.push("/>");
+            return xml.join("");
+        }
+    }
+    xml.push(writeElementsCompact(element, options, depth + 1, false));
+    currentElement = element;
+    currentElementName = name;
+    if (name) {
+        xml.push((indent ? writeIndentation(options, depth, false) : "") + "</" + elementName + ">");
+    }
+    return xml.join("");
+}
+function writeElementsCompact(element, options, depth, firstLine) {
+    let i, key, nodes, xml = [];
+    for(key in element){
+        if (element.hasOwnProperty(key)) {
+            nodes = Array.isArray(element[key]) ? element[key] : [
+                element[key]
+            ];
+            for(i = 0; i < nodes.length; ++i){
+                switch(key){
+                    case options.declarationKey:
+                        xml.push(writeDeclaration(nodes[i], options, depth));
+                        break;
+                    case options.instructionKey:
+                        xml.push((options.indentInstruction ? writeIndentation(options, depth, firstLine) : "") + writeInstruction(nodes[i], options, depth));
+                        break;
+                    case options.attributesKey:
+                    case options.parentKey: break;
+                    case options.textKey:
+                        xml.push((options.indentText ? writeIndentation(options, depth, firstLine) : "") + writeText(nodes[i], options));
+                        break;
+                    case options.cdataKey:
+                        xml.push((options.indentCdata ? writeIndentation(options, depth, firstLine) : "") + writeCdata(nodes[i], options));
+                        break;
+                    case options.doctypeKey:
+                        xml.push(writeIndentation(options, depth, firstLine) + writeDoctype(nodes[i], options));
+                        break;
+                    case options.commentKey:
+                        xml.push(writeIndentation(options, depth, firstLine) + writeComment(nodes[i], options));
+                        break;
+                    default:
+                        xml.push(writeIndentation(options, depth, firstLine) + writeElementCompact(nodes[i], key, options, depth, hasContentCompact(nodes[i], options, undefined)));
+                }
+                firstLine = firstLine && !xml.length;
+            }
+        }
+    }
+    return xml.join("");
+}
+function __default6(js, options) {
+    options = validateOptions(options);
+    const xml = [];
+    currentElement = js;
+    currentElementName = "_root_";
+    if (options.compact) {
+        xml.push(writeElementsCompact(js, options, 0, true));
+    } else {
+        if (js[options.declarationKey]) {
+            xml.push(writeDeclaration(js[options.declarationKey], options, 0));
+        }
+        if (js[options.elementsKey] && js[options.elementsKey].length) {
+            xml.push(writeElements(js[options.elementsKey], options, 0, !xml.length));
+        }
+    }
+    return xml.join("");
+}
 class SimpleRequest1 {
     server;
     conn;
@@ -11619,7 +11738,7 @@ function html(strings, ...values) {
     html += strings[l];
     return html;
 }
-const __default5 = (dirname, entries)=>{
+const __default7 = (dirname, entries)=>{
     return html`
     <!DOCTYPE html>
     <html lang="en">
@@ -11683,7 +11802,7 @@ const __default5 = (dirname, entries)=>{
     </html>
   `;
 };
-const __default6 = async (logger, ev)=>{
+const __default8 = async (logger, ev)=>{
     const path = new URL(ev.request.url).pathname;
     const msg = `Bad Request, method: [${ev.request.method}], path: [${path}]`;
     logger.error(msg);
@@ -11700,7 +11819,7 @@ const __default6 = async (logger, ev)=>{
     } catch (_) {
     }
 };
-const __default7 = async (logger, ev)=>{
+const __default9 = async (logger, ev)=>{
     const path = new URL(ev.request.url).pathname;
     const msg = `Not Found, method: [${ev.request.method}], path: [${path}]`;
     logger.error(msg);
@@ -11717,7 +11836,7 @@ const __default7 = async (logger, ev)=>{
     } catch (_) {
     }
 };
-const __default8 = async (logger, ev, e)=>{
+const __default10 = async (logger, ev, e)=>{
     const err = e?.stack || String(e);
     const msg = `Server Error, method: [${ev.request.method}], url: [${ev.request.url}], error: \n${err}`;
     logger.error(msg);
@@ -11938,7 +12057,7 @@ function extname6(path) {
     }
     return path.slice(startDot, end);
 }
-const __default9 = (url)=>{
+const __default11 = (url)=>{
     let normalizedUrl = url;
     if (!normalizedUrl.startsWith("/")) {
         normalizedUrl = `/${normalizedUrl}`;
@@ -11957,7 +12076,7 @@ const __default9 = (url)=>{
     const startOfParams = normalizedUrl.indexOf("?");
     return startOfParams > -1 ? normalizedUrl.slice(0, startOfParams) : normalizedUrl;
 };
-const __default10 = (reader)=>{
+const __default12 = (reader)=>{
     return new ReadableStream({
         async pull (controller) {
             const chunk = new Uint8Array(16640);
@@ -12029,7 +12148,7 @@ async function serveFile(ev, filePath) {
     if (contentType) {
         headers.set("content-type", contentType);
     }
-    const stream = __default10(file);
+    const stream = __default12(file);
     await ev.respondWith(new Response(stream, {
         status: 200,
         headers
@@ -12070,7 +12189,7 @@ async function serveDir(conf, ev, dirPath) {
         return a.name.toLowerCase() > b.name.toLowerCase() ? 1 : -1;
     });
     const formattedDirUrl = `${dirUrl.replace(/\/$/, "")}/`;
-    const page = encoder.encode(__default5(formattedDirUrl, listEntry));
+    const page = encoder.encode(__default7(formattedDirUrl, listEntry));
     const headers = new Headers();
     headers.set("content-type", "text/html");
     await ev.respondWith(new Response(page, {
@@ -12078,13 +12197,13 @@ async function serveDir(conf, ev, dirPath) {
         headers
     }));
 }
-const __default11 = async (req)=>{
+const __default13 = async (req)=>{
     let fsPath = "";
     const logger = req.server.logger;
     const conf = req.server.conf.files;
     try {
         const relativeUrl = req.path.substring(conf.path.length);
-        const normalizedUrl = __default9(relativeUrl);
+        const normalizedUrl = __default11(relativeUrl);
         fsPath = join7(conf.rootDirectory, normalizedUrl);
         const fileInfo = await Deno.stat(fsPath);
         if (fileInfo.isDirectory) {
@@ -12099,15 +12218,15 @@ const __default11 = async (req)=>{
     } catch (e) {
         logger.error(`Error serving file, path: [${fsPath}]`);
         if (e instanceof URIError) {
-            await __default6(logger, req.ev);
+            await __default8(logger, req.ev);
         } else if (e instanceof Deno.errors.NotFound) {
-            await __default7(logger, req.ev);
+            await __default9(logger, req.ev);
         } else {
-            await __default8(logger, req.ev, e);
+            await __default10(logger, req.ev, e);
         }
     }
 };
-const __default12 = async (req)=>{
+const __default14 = async (req)=>{
     const logger = req.server.logger;
     const conf = req.server.conf.http;
     try {
@@ -12115,10 +12234,10 @@ const __default12 = async (req)=>{
         const resp = await conf.handler(req);
         await req.respondWith(resp);
     } catch (e) {
-        await __default8(logger, req.ev, e);
+        await __default10(logger, req.ev, e);
     }
 };
-const __default13 = (closer)=>{
+const __default15 = (closer)=>{
     if (!closer) {
         return;
     }
@@ -12176,28 +12295,28 @@ async function handleSockNoThrow(logger, conf, sock, id) {
         logger.error(String(e));
     }
 }
-const __default14 = async (req)=>{
+const __default16 = async (req)=>{
     const logger = req.server.logger;
     const conf = req.server.conf.websocket;
     const conn = req.conn;
     let sock = null;
     try {
         if ("websocket" != req.headers.get("upgrade")) {
-            await __default6(logger, req.ev);
+            await __default8(logger, req.ev);
             return;
         }
         const upg = Deno.upgradeWebSocket(req.ev.request);
         await req.ev.respondWith(upg.response);
         sock = upg.socket;
     } catch (e) {
-        await __default8(logger, req.ev, e);
+        await __default10(logger, req.ev, e);
         return;
     }
     if (null != sock) {
         conn.trackWebSocket(sock);
         logger.info(`WebSocket connection opened, id: [${conn.httpConn.rid}]`);
         await handleSockNoThrow(logger, conf, sock, conn.httpConn.rid);
-        __default13(sock);
+        __default15(sock);
         logger.info(`WebSocket connection closed, id: [${conn.httpConn.rid}]`);
     }
 };
@@ -12237,9 +12356,9 @@ class SimpleConn {
         this.websocket = websocket;
     }
     close() {
-        __default13(this.websocket);
-        __default13(this.httpConn);
-        __default13(this.tcpConn);
+        __default15(this.websocket);
+        __default15(this.httpConn);
+        __default15(this.tcpConn);
     }
     async ensureDone() {
         if (null != this.op) {
@@ -12279,9 +12398,9 @@ class TrackingListener {
         }
         this.closed = true;
         for (const conn of this.activeConns){
-            __default13(conn);
+            __default15(conn);
         }
-        __default13(this.denoListener);
+        __default15(this.denoListener);
     }
     async ensureDone() {
         const ops = [];
@@ -12313,7 +12432,7 @@ class TrackingListener {
         };
     }
 }
-const __default15 = async (logger, ev, location)=>{
+const __default17 = async (logger, ev, location)=>{
     const path = new URL(ev.request.url).pathname;
     logger.info(`Redirecting from: [${path}] to [${location}]`);
     const headers = new Headers();
@@ -12397,7 +12516,7 @@ class SimpleServer1 {
                 }
                 const req = new SimpleRequest1(this, conn, ev);
                 if (this.conf.websocket && req.path === this.conf.websocket.path) {
-                    await __default14(req);
+                    await __default16(req);
                     break;
                 }
                 await this._handleReq(req);
@@ -12409,21 +12528,21 @@ class SimpleServer1 {
             }
         }
         this.listener.untrackConn(conn);
-        __default13(conn);
+        __default15(conn);
     }
     async _handleReq(req) {
         try {
             if (this.conf.http && req.path.startsWith(this.conf.http.path)) {
-                await __default12(req);
+                await __default14(req);
             } else if (this.conf.files && req.path.startsWith(this.conf.files.path)) {
-                await __default11(req);
+                await __default13(req);
             } else if ("/" === req.path && this.conf.rootRedirectLocation) {
-                await __default15(this.logger, req.ev, this.conf.rootRedirectLocation);
+                await __default17(this.logger, req.ev, this.conf.rootRedirectLocation);
             } else {
-                await __default7(this.logger, req.ev);
+                await __default9(this.logger, req.ev);
             }
         } catch (e) {
-            await __default8(this.logger, req.ev, e);
+            await __default10(this.logger, req.ev, e);
         }
     }
     broadcastWebsocket(msg) {
@@ -12496,9 +12615,9 @@ async function winscmStartDispatcher1(opts) {
 }
 export { mod as log };
 export { mod8 as uuidv4 };
-export { dayjs_min as dayjs };
+export { dayjs1 as dayjs };
 export { Yargs as yargs };
-export { __default4 as js2xml };
+export { __default6 as js2xml };
 export { SimpleServer1 as SimpleServer, SimpleRequest1 as SimpleRequest };
 export { winscmStartDispatcher1 as winscmStartDispatcher };
 export { mod6 as fs };
