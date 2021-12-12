@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import { fs, log, path } from "../deps.js";
+import { fs, logger, path } from "../deps.js";
 import conf from "../conf.js";
 
 export default async () => {
-  const logger = log.getLogger();
-
   // prepare dir
   const dir = path.join(conf().appdir, "work/restart");
   if (!fs.existsSync(dir)) {

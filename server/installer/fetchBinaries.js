@@ -16,15 +16,13 @@
 
 import {
   fs,
-  log,
+  logger,
   path,
   io,
 } from "../deps.js";
 import conf from "../conf.js";
 
 export default async () => {
-  const logger = log.getLogger();
-
   const binDir = path.join(conf().appdir, "bin");
   if (!fs.existsSync(binDir)) {
     Deno.mkdirSync(binDir);

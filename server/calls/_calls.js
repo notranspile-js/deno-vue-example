@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
+import { logger } from "../deps.js";
 import conf from "../conf.js";
 import beginBroadcast from "./beginBroadcast.js";
 import config from "./config.js";
@@ -25,8 +25,6 @@ import restartStatus from "./restartStatus.js";
 import rewriteConfig from "./rewriteConfig.js";
 
 export default async (req) => {
-  const logger = log.getLogger();
-
   const name = req.path.substring(conf().server.http.path.length);
   switch (name) {
 

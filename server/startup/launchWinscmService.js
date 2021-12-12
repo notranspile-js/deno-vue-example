@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { log, winscmStartDispatcher } from "../deps.js";
+import { logger, winscmStartDispatcher } from "../deps.js";
 import conf from "../conf.js";
 import shutdownFlag from "../service/shutdownFlag.js";
 import createDirs from "./createDirs.js";
@@ -25,8 +25,6 @@ import startServer from "./startServer.js";
 export default async () => {
   await createDirs();
   await setupLogging();
-
-  const logger = log.getLogger();
 
   const server = startServer();
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { fs, log } from "../deps.js";
+import { fs, logger } from "../deps.js";
 import bundleInstaller from "./bundleInstaller.js";
 import fetchBinaries from "./fetchBinaries.js";
 import prepareDist from "./prepareDist.js";
@@ -22,8 +22,6 @@ import prepareWorkDir from "./prepareWorkDir.js";
 import writeDescriptor from "./writeDescriptor.js";
 
 export default async (wixDir) => {
-  const logger = log.getLogger();
-
   if (null == wixDir) {
     throw new Error("'--wix-directory' parameter must be specified");
   }

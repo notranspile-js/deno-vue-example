@@ -15,14 +15,13 @@
  */
 
 import conf from "../conf.js";
-import { fs, log, path } from "../deps.js";
+import { fs, logger, path } from "../deps.js";
 
 export default async (req) => {
   if ("POST" !== req.method) {
     throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
   }
 
-  const logger = log.getLogger();
   logger.info("Rewriting config file ...");
 
   const confPath = path.join(conf().appdir, "conf", "config.json");

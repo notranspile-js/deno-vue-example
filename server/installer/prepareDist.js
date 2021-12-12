@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { fs, log, path } from "../deps.js";
+import { fs, logger, path } from "../deps.js";
 import conf from "../conf.js";
 
 export default (workDir) => {
-  const logger = log.getLogger();
   logger.info("Preparing dist files ...");
 
   const join = path.join;

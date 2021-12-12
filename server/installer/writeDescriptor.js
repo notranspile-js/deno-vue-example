@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-import { js2xml, log } from "../deps.js";
+import { js2xml, logger } from "../deps.js";
 import conf from "../conf.js";
 import createDeclaration from "./descriptor/createDeclaration.js";
 import createWix from "./descriptor/createWix.js";
 
 export default (workDir, distDir) => {
-  const logger = log.getLogger();
-
   logger.info("Creating installer descriptor ...");
   const descPath =
     `${workDir}${conf().installer.msiFileName}_${conf().appversion}.wxs`;

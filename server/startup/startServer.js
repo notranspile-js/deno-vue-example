@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { log, SimpleServer } from "../deps.js";
+import { logger, SimpleServer } from "../deps.js";
 import conf from "../conf.js";
 import httpHandler from "../calls/_calls.js";
 
 export default () => {
-  const logger = log.getLogger();
   const cs = conf().server;
 
   const server = new SimpleServer({

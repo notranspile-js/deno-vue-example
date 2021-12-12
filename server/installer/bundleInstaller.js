@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-import { log, path } from "../deps.js";
+import { logger, path } from "../deps.js";
 
 export default async (wixDir, descriptor) => {
-  const logger = log.getLogger();
-
   logger.info("Bundling installer ...");
   const name = descriptor.substring(0, descriptor.length - 4);
 

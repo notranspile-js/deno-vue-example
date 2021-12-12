@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-import { log } from "../deps.js";
+import { logger } from "../deps.js";
 import restartWinscmService from "../service/restartWinscmService.js";
 import shutdownFlag from "../service/shutdownFlag.js";
 
 export default (req) => {
-  const logger = log.getLogger();
-
   if ("POST" !== req.method) {
     throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
   }

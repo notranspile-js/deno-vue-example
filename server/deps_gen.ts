@@ -35,14 +35,13 @@ export * as fs from "https://deno.land/std@0.110.0/fs/mod.ts";
 export * as io from "https://deno.land/std@0.110.0/io/mod.ts";
 
 // @ts-ignore extension
-import * as log from "https://deno.land/std@0.110.0/log/mod.ts";
-export { log };
-
-// @ts-ignore extension
 export * as path from "https://deno.land/std@0.110.0/path/mod.ts";
 
 // @ts-ignore extension
 export { v4 as uuidv4 } from "https://deno.land/std@0.110.0/uuid/mod.ts";
+
+// @ts-ignore extension
+export { log, logger } from "https://deno.land/x/notranspile_logger@1.1.0/mod.ts"
 
 // dayjs
 // @ts-ignore extension
@@ -58,13 +57,13 @@ export { yargs };
 // @ts-ignore extension
 export { js2xml } from "https://deno.land/x/js2xml@1.0.2/mod.ts";
 
-// deno-simple-server
+// simple_server
 // @ts-ignore extension
 export {
   SimpleRequest,
   SimpleServer,
 } from "https://deno.land/x/simple_server@1.1.0/mod.ts";
 
-// deno-windows-scm
+// windows_scm
 // @ts-ignore extension
 export { winscmStartDispatcher } from "https://deno.land/x/windows_scm@1.1.1/mod.ts";

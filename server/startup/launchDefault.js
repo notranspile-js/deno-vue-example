@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { io, log } from "../deps.js";
+import { io, logger } from "../deps.js";
 import shutdownFlag from "../service/shutdownFlag.js";
 import createDirs from "./createDirs.js";
 import intervalTracker from "../service/intervalTracker.js";
@@ -24,8 +24,6 @@ import startServer from "./startServer.js";
 export default async () => {
   await createDirs();
   await setupLogging();
-
-  const logger = log.getLogger();
 
   const server = startServer();
   logger.info("Press Enter to stop");

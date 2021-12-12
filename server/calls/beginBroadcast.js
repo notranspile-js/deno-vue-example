@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-import { dayjs, log } from "../deps.js";
+import { dayjs, logger } from "../deps.js";
 import intervalTracker from "../service/intervalTracker.js";
 
 let active = false;
 
 export default async (req) => {
-  const logger = log.getLogger();
-
   if ("POST" !== req.method) {
     throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
   }

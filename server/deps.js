@@ -1,1412 +1,3 @@
-var LogLevels;
-(function(LogLevels) {
-    LogLevels[LogLevels["NOTSET"] = 0] = "NOTSET";
-    LogLevels[LogLevels["DEBUG"] = 10] = "DEBUG";
-    LogLevels[LogLevels["INFO"] = 20] = "INFO";
-    LogLevels[LogLevels["WARNING"] = 30] = "WARNING";
-    LogLevels[LogLevels["ERROR"] = 40] = "ERROR";
-    LogLevels[LogLevels["CRITICAL"] = 50] = "CRITICAL";
-})(LogLevels || (LogLevels = {
-}));
-const byLevel = {
-    [String(LogLevels.NOTSET)]: "NOTSET",
-    [String(LogLevels.DEBUG)]: "DEBUG",
-    [String(LogLevels.INFO)]: "INFO",
-    [String(LogLevels.WARNING)]: "WARNING",
-    [String(LogLevels.ERROR)]: "ERROR",
-    [String(LogLevels.CRITICAL)]: "CRITICAL"
-};
-function getLevelByName(name) {
-    switch(name){
-        case "NOTSET":
-            return LogLevels.NOTSET;
-        case "DEBUG":
-            return LogLevels.DEBUG;
-        case "INFO":
-            return LogLevels.INFO;
-        case "WARNING":
-            return LogLevels.WARNING;
-        case "ERROR":
-            return LogLevels.ERROR;
-        case "CRITICAL":
-            return LogLevels.CRITICAL;
-        default:
-            throw new Error(`no log level found for "${name}"`);
-    }
-}
-function getLevelName(level) {
-    const levelName = byLevel[level];
-    if (levelName) {
-        return levelName;
-    }
-    throw new Error(`no level name found for level: ${level}`);
-}
-class LogRecord {
-    msg;
-    #args;
-    #datetime;
-    level;
-    levelName;
-    loggerName;
-    constructor(options){
-        this.msg = options.msg;
-        this.#args = [
-            ...options.args
-        ];
-        this.level = options.level;
-        this.loggerName = options.loggerName;
-        this.#datetime = new Date();
-        this.levelName = getLevelName(options.level);
-    }
-    get args() {
-        return [
-            ...this.#args
-        ];
-    }
-    get datetime() {
-        return new Date(this.#datetime.getTime());
-    }
-}
-class Logger {
-    #level;
-    #handlers;
-    #loggerName;
-    constructor(loggerName1, levelName1, options1 = {
-    }){
-        this.#loggerName = loggerName1;
-        this.#level = getLevelByName(levelName1);
-        this.#handlers = options1.handlers || [];
-    }
-    get level() {
-        return this.#level;
-    }
-    set level(level) {
-        this.#level = level;
-    }
-    get levelName() {
-        return getLevelName(this.#level);
-    }
-    set levelName(levelName) {
-        this.#level = getLevelByName(levelName);
-    }
-    get loggerName() {
-        return this.#loggerName;
-    }
-    set handlers(hndls) {
-        this.#handlers = hndls;
-    }
-    get handlers() {
-        return this.#handlers;
-    }
-    _log(level, msg, ...args) {
-        if (this.level > level) {
-            return msg instanceof Function ? undefined : msg;
-        }
-        let fnResult;
-        let logMessage;
-        if (msg instanceof Function) {
-            fnResult = msg();
-            logMessage = this.asString(fnResult);
-        } else {
-            logMessage = this.asString(msg);
-        }
-        const record = new LogRecord({
-            msg: logMessage,
-            args: args,
-            level: level,
-            loggerName: this.loggerName
-        });
-        this.#handlers.forEach((handler)=>{
-            handler.handle(record);
-        });
-        return msg instanceof Function ? fnResult : msg;
-    }
-    asString(data) {
-        if (typeof data === "string") {
-            return data;
-        } else if (data === null || typeof data === "number" || typeof data === "bigint" || typeof data === "boolean" || typeof data === "undefined" || typeof data === "symbol") {
-            return String(data);
-        } else if (data instanceof Error) {
-            return data.stack;
-        } else if (typeof data === "object") {
-            return JSON.stringify(data);
-        }
-        return "undefined";
-    }
-    debug(msg, ...args) {
-        return this._log(LogLevels.DEBUG, msg, ...args);
-    }
-    info(msg, ...args) {
-        return this._log(LogLevels.INFO, msg, ...args);
-    }
-    warning(msg, ...args) {
-        return this._log(LogLevels.WARNING, msg, ...args);
-    }
-    error(msg, ...args) {
-        return this._log(LogLevels.ERROR, msg, ...args);
-    }
-    critical(msg, ...args) {
-        return this._log(LogLevels.CRITICAL, msg, ...args);
-    }
-}
-const { Deno: Deno1  } = globalThis;
-const noColor = typeof Deno1?.noColor === "boolean" ? Deno1.noColor : true;
-let enabled = !noColor;
-function code(open, close) {
-    return {
-        open: `\x1b[${open.join(";")}m`,
-        close: `\x1b[${close}m`,
-        regexp: new RegExp(`\\x1b\\[${close}m`, "g")
-    };
-}
-function run(str, code) {
-    return enabled ? `${code.open}${str.replace(code.regexp, code.open)}${code.close}` : str;
-}
-function bold(str) {
-    return run(str, code([
-        1
-    ], 22));
-}
-function red(str) {
-    return run(str, code([
-        31
-    ], 39));
-}
-function yellow(str) {
-    return run(str, code([
-        33
-    ], 39));
-}
-function blue(str) {
-    return run(str, code([
-        34
-    ], 39));
-}
-const ANSI_PATTERN = new RegExp([
-    "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
-    "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))", 
-].join("|"), "g");
-async function exists(filePath) {
-    try {
-        await Deno.lstat(filePath);
-        return true;
-    } catch (err) {
-        if (err instanceof Deno.errors.NotFound) {
-            return false;
-        }
-        throw err;
-    }
-}
-function existsSync(filePath) {
-    try {
-        Deno.lstatSync(filePath);
-        return true;
-    } catch (err) {
-        if (err instanceof Deno.errors.NotFound) {
-            return false;
-        }
-        throw err;
-    }
-}
-function concat(...buf) {
-    let length = 0;
-    for (const b of buf){
-        length += b.length;
-    }
-    const output = new Uint8Array(length);
-    let index = 0;
-    for (const b1 of buf){
-        output.set(b1, index);
-        index += b1.length;
-    }
-    return output;
-}
-function copy(src, dst, off = 0) {
-    off = Math.max(0, Math.min(off, dst.byteLength));
-    const dstBytesAvailable = dst.byteLength - off;
-    if (src.byteLength > dstBytesAvailable) {
-        src = src.subarray(0, dstBytesAvailable);
-    }
-    dst.set(src, off);
-    return src.byteLength;
-}
-class DenoStdInternalError extends Error {
-    constructor(message){
-        super(message);
-        this.name = "DenoStdInternalError";
-    }
-}
-function assert(expr, msg = "") {
-    if (!expr) {
-        throw new DenoStdInternalError(msg);
-    }
-}
-class BytesList {
-    len = 0;
-    chunks = [];
-    constructor(){
-    }
-    size() {
-        return this.len;
-    }
-    add(value, start = 0, end = value.byteLength) {
-        if (value.byteLength === 0 || end - start === 0) {
-            return;
-        }
-        checkRange(start, end, value.byteLength);
-        this.chunks.push({
-            value,
-            end,
-            start,
-            offset: this.len
-        });
-        this.len += end - start;
-    }
-    shift(n) {
-        if (n === 0) {
-            return;
-        }
-        if (this.len <= n) {
-            this.chunks = [];
-            this.len = 0;
-            return;
-        }
-        const idx = this.getChunkIndex(n);
-        this.chunks.splice(0, idx);
-        const [chunk] = this.chunks;
-        if (chunk) {
-            const diff = n - chunk.offset;
-            chunk.start += diff;
-        }
-        let offset = 0;
-        for (const chunk1 of this.chunks){
-            chunk1.offset = offset;
-            offset += chunk1.end - chunk1.start;
-        }
-        this.len = offset;
-    }
-    getChunkIndex(pos) {
-        let max = this.chunks.length;
-        let min = 0;
-        while(true){
-            const i = min + Math.floor((max - min) / 2);
-            if (i < 0 || this.chunks.length <= i) {
-                return -1;
-            }
-            const { offset , start , end  } = this.chunks[i];
-            const len = end - start;
-            if (offset <= pos && pos < offset + len) {
-                return i;
-            } else if (offset + len <= pos) {
-                min = i + 1;
-            } else {
-                max = i - 1;
-            }
-        }
-    }
-    get(i) {
-        if (i < 0 || this.len <= i) {
-            throw new Error("out of range");
-        }
-        const idx = this.getChunkIndex(i);
-        const { value , offset , start  } = this.chunks[idx];
-        return value[start + i - offset];
-    }
-    *iterator(start = 0) {
-        const startIdx = this.getChunkIndex(start);
-        if (startIdx < 0) return;
-        const first = this.chunks[startIdx];
-        let firstOffset = start - first.offset;
-        for(let i = startIdx; i < this.chunks.length; i++){
-            const chunk = this.chunks[i];
-            for(let j = chunk.start + firstOffset; j < chunk.end; j++){
-                yield chunk.value[j];
-            }
-            firstOffset = 0;
-        }
-    }
-    slice(start, end = this.len) {
-        if (end === start) {
-            return new Uint8Array();
-        }
-        checkRange(start, end, this.len);
-        const result = new Uint8Array(end - start);
-        const startIdx = this.getChunkIndex(start);
-        const endIdx = this.getChunkIndex(end - 1);
-        let written = 0;
-        for(let i = startIdx; i < endIdx; i++){
-            const chunk = this.chunks[i];
-            const len = chunk.end - chunk.start;
-            result.set(chunk.value.subarray(chunk.start, chunk.end), written);
-            written += len;
-        }
-        const last = this.chunks[endIdx];
-        const rest = end - start - written;
-        result.set(last.value.subarray(last.start, last.start + rest), written);
-        return result;
-    }
-    concat() {
-        const result = new Uint8Array(this.len);
-        let sum = 0;
-        for (const { value , start , end  } of this.chunks){
-            result.set(value.subarray(start, end), sum);
-            sum += end - start;
-        }
-        return result;
-    }
-}
-function checkRange(start, end, len) {
-    if (start < 0 || len < start || end < 0 || len < end || end < start) {
-        throw new Error("invalid range");
-    }
-}
-const MIN_READ = 32 * 1024;
-const MAX_SIZE = 2 ** 32 - 2;
-class Buffer {
-    #buf;
-    #off = 0;
-    constructor(ab){
-        this.#buf = ab === undefined ? new Uint8Array(0) : new Uint8Array(ab);
-    }
-    bytes(options = {
-        copy: true
-    }) {
-        if (options.copy === false) return this.#buf.subarray(this.#off);
-        return this.#buf.slice(this.#off);
-    }
-    empty() {
-        return this.#buf.byteLength <= this.#off;
-    }
-    get length() {
-        return this.#buf.byteLength - this.#off;
-    }
-    get capacity() {
-        return this.#buf.buffer.byteLength;
-    }
-    truncate(n) {
-        if (n === 0) {
-            this.reset();
-            return;
-        }
-        if (n < 0 || n > this.length) {
-            throw Error("bytes.Buffer: truncation out of range");
-        }
-        this.#reslice(this.#off + n);
-    }
-    reset() {
-        this.#reslice(0);
-        this.#off = 0;
-    }
-     #tryGrowByReslice(n) {
-        const l = this.#buf.byteLength;
-        if (n <= this.capacity - l) {
-            this.#reslice(l + n);
-            return l;
-        }
-        return -1;
-    }
-     #reslice(len) {
-        assert(len <= this.#buf.buffer.byteLength);
-        this.#buf = new Uint8Array(this.#buf.buffer, 0, len);
-    }
-    readSync(p) {
-        if (this.empty()) {
-            this.reset();
-            if (p.byteLength === 0) {
-                return 0;
-            }
-            return null;
-        }
-        const nread = copy(this.#buf.subarray(this.#off), p);
-        this.#off += nread;
-        return nread;
-    }
-    read(p) {
-        const rr = this.readSync(p);
-        return Promise.resolve(rr);
-    }
-    writeSync(p) {
-        const m = this.#grow(p.byteLength);
-        return copy(p, this.#buf, m);
-    }
-    write(p) {
-        const n = this.writeSync(p);
-        return Promise.resolve(n);
-    }
-     #grow(n) {
-        const m = this.length;
-        if (m === 0 && this.#off !== 0) {
-            this.reset();
-        }
-        const i = this.#tryGrowByReslice(n);
-        if (i >= 0) {
-            return i;
-        }
-        const c = this.capacity;
-        if (n <= Math.floor(c / 2) - m) {
-            copy(this.#buf.subarray(this.#off), this.#buf);
-        } else if (c + n > MAX_SIZE) {
-            throw new Error("The buffer cannot be grown beyond the maximum size.");
-        } else {
-            const buf = new Uint8Array(Math.min(2 * c + n, MAX_SIZE));
-            copy(this.#buf.subarray(this.#off), buf);
-            this.#buf = buf;
-        }
-        this.#off = 0;
-        this.#reslice(Math.min(m + n, MAX_SIZE));
-        return m;
-    }
-    grow(n) {
-        if (n < 0) {
-            throw Error("Buffer.grow: negative count");
-        }
-        const m = this.#grow(n);
-        this.#reslice(m);
-    }
-    async readFrom(r) {
-        let n = 0;
-        const tmp = new Uint8Array(MIN_READ);
-        while(true){
-            const shouldGrow = this.capacity - this.length < MIN_READ;
-            const buf = shouldGrow ? tmp : new Uint8Array(this.#buf.buffer, this.length);
-            const nread = await r.read(buf);
-            if (nread === null) {
-                return n;
-            }
-            if (shouldGrow) this.writeSync(buf.subarray(0, nread));
-            else this.#reslice(this.length + nread);
-            n += nread;
-        }
-    }
-    readFromSync(r) {
-        let n = 0;
-        const tmp = new Uint8Array(MIN_READ);
-        while(true){
-            const shouldGrow = this.capacity - this.length < MIN_READ;
-            const buf = shouldGrow ? tmp : new Uint8Array(this.#buf.buffer, this.length);
-            const nread = r.readSync(buf);
-            if (nread === null) {
-                return n;
-            }
-            if (shouldGrow) this.writeSync(buf.subarray(0, nread));
-            else this.#reslice(this.length + nread);
-            n += nread;
-        }
-    }
-}
-var DiffType;
-(function(DiffType) {
-    DiffType["removed"] = "removed";
-    DiffType["common"] = "common";
-    DiffType["added"] = "added";
-})(DiffType || (DiffType = {
-}));
-class AssertionError extends Error {
-    name = "AssertionError";
-    constructor(message1){
-        super(message1);
-    }
-}
-function assert1(expr, msg = "") {
-    if (!expr) {
-        throw new AssertionError(msg);
-    }
-}
-const DEFAULT_BUFFER_SIZE = 32 * 1024;
-async function readAll(r) {
-    const buf = new Buffer();
-    await buf.readFrom(r);
-    return buf.bytes();
-}
-function readAllSync(r) {
-    const buf = new Buffer();
-    buf.readFromSync(r);
-    return buf.bytes();
-}
-async function readRange(r, range) {
-    let length = range.end - range.start + 1;
-    assert1(length > 0, "Invalid byte range was passed.");
-    await r.seek(range.start, Deno.SeekMode.Start);
-    const result = new Uint8Array(length);
-    let off = 0;
-    while(length){
-        const p = new Uint8Array(Math.min(length, DEFAULT_BUFFER_SIZE));
-        const nread = await r.read(p);
-        assert1(nread !== null, "Unexpected EOF reach while reading a range.");
-        assert1(nread > 0, "Unexpected read of 0 bytes while reading a range.");
-        copy(p, result, off);
-        off += nread;
-        length -= nread;
-        assert1(length >= 0, "Unexpected length remaining after reading range.");
-    }
-    return result;
-}
-function readRangeSync(r, range) {
-    let length = range.end - range.start + 1;
-    assert1(length > 0, "Invalid byte range was passed.");
-    r.seekSync(range.start, Deno.SeekMode.Start);
-    const result = new Uint8Array(length);
-    let off = 0;
-    while(length){
-        const p = new Uint8Array(Math.min(length, DEFAULT_BUFFER_SIZE));
-        const nread = r.readSync(p);
-        assert1(nread !== null, "Unexpected EOF reach while reading a range.");
-        assert1(nread > 0, "Unexpected read of 0 bytes while reading a range.");
-        copy(p, result, off);
-        off += nread;
-        length -= nread;
-        assert1(length >= 0, "Unexpected length remaining after reading range.");
-    }
-    return result;
-}
-async function writeAll(w, arr) {
-    let nwritten = 0;
-    while(nwritten < arr.length){
-        nwritten += await w.write(arr.subarray(nwritten));
-    }
-}
-function writeAllSync(w, arr) {
-    let nwritten = 0;
-    while(nwritten < arr.length){
-        nwritten += w.writeSync(arr.subarray(nwritten));
-    }
-}
-async function* iter(r, options) {
-    const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
-    const b = new Uint8Array(bufSize);
-    while(true){
-        const result = await r.read(b);
-        if (result === null) {
-            break;
-        }
-        yield b.subarray(0, result);
-    }
-}
-function* iterSync(r, options) {
-    const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
-    const b = new Uint8Array(bufSize);
-    while(true){
-        const result = r.readSync(b);
-        if (result === null) {
-            break;
-        }
-        yield b.subarray(0, result);
-    }
-}
-async function copy1(src, dst, options) {
-    let n = 0;
-    const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
-    const b = new Uint8Array(bufSize);
-    let gotEOF = false;
-    while(gotEOF === false){
-        const result = await src.read(b);
-        if (result === null) {
-            gotEOF = true;
-        } else {
-            let nwritten = 0;
-            while(nwritten < result){
-                nwritten += await dst.write(b.subarray(nwritten, result));
-            }
-            n += nwritten;
-        }
-    }
-    return n;
-}
-const DEFAULT_BUF_SIZE = 4096;
-const MIN_BUF_SIZE = 16;
-const CR = "\r".charCodeAt(0);
-const LF = "\n".charCodeAt(0);
-class BufferFullError extends Error {
-    partial;
-    name = "BufferFullError";
-    constructor(partial1){
-        super("Buffer full");
-        this.partial = partial1;
-    }
-}
-class PartialReadError extends Error {
-    name = "PartialReadError";
-    partial;
-    constructor(){
-        super("Encountered UnexpectedEof, data only partially read");
-    }
-}
-class BufReader {
-    buf;
-    rd;
-    r = 0;
-    w = 0;
-    eof = false;
-    static create(r, size = 4096) {
-        return r instanceof BufReader ? r : new BufReader(r, size);
-    }
-    constructor(rd1, size = 4096){
-        if (size < 16) {
-            size = MIN_BUF_SIZE;
-        }
-        this._reset(new Uint8Array(size), rd1);
-    }
-    size() {
-        return this.buf.byteLength;
-    }
-    buffered() {
-        return this.w - this.r;
-    }
-    async _fill() {
-        if (this.r > 0) {
-            this.buf.copyWithin(0, this.r, this.w);
-            this.w -= this.r;
-            this.r = 0;
-        }
-        if (this.w >= this.buf.byteLength) {
-            throw Error("bufio: tried to fill full buffer");
-        }
-        for(let i = 100; i > 0; i--){
-            const rr = await this.rd.read(this.buf.subarray(this.w));
-            if (rr === null) {
-                this.eof = true;
-                return;
-            }
-            assert(rr >= 0, "negative read");
-            this.w += rr;
-            if (rr > 0) {
-                return;
-            }
-        }
-        throw new Error(`No progress after ${100} read() calls`);
-    }
-    reset(r) {
-        this._reset(this.buf, r);
-    }
-    _reset(buf, rd) {
-        this.buf = buf;
-        this.rd = rd;
-        this.eof = false;
-    }
-    async read(p) {
-        let rr = p.byteLength;
-        if (p.byteLength === 0) return rr;
-        if (this.r === this.w) {
-            if (p.byteLength >= this.buf.byteLength) {
-                const rr = await this.rd.read(p);
-                const nread = rr ?? 0;
-                assert(nread >= 0, "negative read");
-                return rr;
-            }
-            this.r = 0;
-            this.w = 0;
-            rr = await this.rd.read(this.buf);
-            if (rr === 0 || rr === null) return rr;
-            assert(rr >= 0, "negative read");
-            this.w += rr;
-        }
-        const copied = copy(this.buf.subarray(this.r, this.w), p, 0);
-        this.r += copied;
-        return copied;
-    }
-    async readFull(p) {
-        let bytesRead = 0;
-        while(bytesRead < p.length){
-            try {
-                const rr = await this.read(p.subarray(bytesRead));
-                if (rr === null) {
-                    if (bytesRead === 0) {
-                        return null;
-                    } else {
-                        throw new PartialReadError();
-                    }
-                }
-                bytesRead += rr;
-            } catch (err) {
-                if (err instanceof PartialReadError) {
-                    err.partial = p.subarray(0, bytesRead);
-                } else if (err instanceof Error) {
-                    const e = new PartialReadError();
-                    e.partial = p.subarray(0, bytesRead);
-                    e.stack = err.stack;
-                    e.message = err.message;
-                    e.cause = err.cause;
-                    throw err;
-                }
-                throw err;
-            }
-        }
-        return p;
-    }
-    async readByte() {
-        while(this.r === this.w){
-            if (this.eof) return null;
-            await this._fill();
-        }
-        const c = this.buf[this.r];
-        this.r++;
-        return c;
-    }
-    async readString(delim) {
-        if (delim.length !== 1) {
-            throw new Error("Delimiter should be a single character");
-        }
-        const buffer = await this.readSlice(delim.charCodeAt(0));
-        if (buffer === null) return null;
-        return new TextDecoder().decode(buffer);
-    }
-    async readLine() {
-        let line = null;
-        try {
-            line = await this.readSlice(LF);
-        } catch (err) {
-            if (err instanceof Deno.errors.BadResource) {
-                throw err;
-            }
-            let partial;
-            if (err instanceof PartialReadError) {
-                partial = err.partial;
-                assert(partial instanceof Uint8Array, "bufio: caught error from `readSlice()` without `partial` property");
-            }
-            if (!(err instanceof BufferFullError)) {
-                throw err;
-            }
-            if (!this.eof && partial && partial.byteLength > 0 && partial[partial.byteLength - 1] === CR) {
-                assert(this.r > 0, "bufio: tried to rewind past start of buffer");
-                this.r--;
-                partial = partial.subarray(0, partial.byteLength - 1);
-            }
-            if (partial) {
-                return {
-                    line: partial,
-                    more: !this.eof
-                };
-            }
-        }
-        if (line === null) {
-            return null;
-        }
-        if (line.byteLength === 0) {
-            return {
-                line,
-                more: false
-            };
-        }
-        if (line[line.byteLength - 1] == LF) {
-            let drop = 1;
-            if (line.byteLength > 1 && line[line.byteLength - 2] === CR) {
-                drop = 2;
-            }
-            line = line.subarray(0, line.byteLength - drop);
-        }
-        return {
-            line,
-            more: false
-        };
-    }
-    async readSlice(delim) {
-        let s = 0;
-        let slice;
-        while(true){
-            let i = this.buf.subarray(this.r + s, this.w).indexOf(delim);
-            if (i >= 0) {
-                i += s;
-                slice = this.buf.subarray(this.r, this.r + i + 1);
-                this.r += i + 1;
-                break;
-            }
-            if (this.eof) {
-                if (this.r === this.w) {
-                    return null;
-                }
-                slice = this.buf.subarray(this.r, this.w);
-                this.r = this.w;
-                break;
-            }
-            if (this.buffered() >= this.buf.byteLength) {
-                this.r = this.w;
-                const oldbuf = this.buf;
-                const newbuf = this.buf.slice(0);
-                this.buf = newbuf;
-                throw new BufferFullError(oldbuf);
-            }
-            s = this.w - this.r;
-            try {
-                await this._fill();
-            } catch (err) {
-                if (err instanceof PartialReadError) {
-                    err.partial = slice;
-                } else if (err instanceof Error) {
-                    const e = new PartialReadError();
-                    e.partial = slice;
-                    e.stack = err.stack;
-                    e.message = err.message;
-                    e.cause = err.cause;
-                    throw err;
-                }
-                throw err;
-            }
-        }
-        return slice;
-    }
-    async peek(n) {
-        if (n < 0) {
-            throw Error("negative count");
-        }
-        let avail = this.w - this.r;
-        while(avail < n && avail < this.buf.byteLength && !this.eof){
-            try {
-                await this._fill();
-            } catch (err) {
-                if (err instanceof PartialReadError) {
-                    err.partial = this.buf.subarray(this.r, this.w);
-                } else if (err instanceof Error) {
-                    const e = new PartialReadError();
-                    e.partial = this.buf.subarray(this.r, this.w);
-                    e.stack = err.stack;
-                    e.message = err.message;
-                    e.cause = err.cause;
-                    throw err;
-                }
-                throw err;
-            }
-            avail = this.w - this.r;
-        }
-        if (avail === 0 && this.eof) {
-            return null;
-        } else if (avail < n && this.eof) {
-            return this.buf.subarray(this.r, this.r + avail);
-        } else if (avail < n) {
-            throw new BufferFullError(this.buf.subarray(this.r, this.w));
-        }
-        return this.buf.subarray(this.r, this.r + n);
-    }
-}
-class AbstractBufBase {
-    buf;
-    usedBufferBytes = 0;
-    err = null;
-    size() {
-        return this.buf.byteLength;
-    }
-    available() {
-        return this.buf.byteLength - this.usedBufferBytes;
-    }
-    buffered() {
-        return this.usedBufferBytes;
-    }
-}
-class BufWriter extends AbstractBufBase {
-    writer;
-    static create(writer, size = 4096) {
-        return writer instanceof BufWriter ? writer : new BufWriter(writer, size);
-    }
-    constructor(writer1, size1 = 4096){
-        super();
-        this.writer = writer1;
-        if (size1 <= 0) {
-            size1 = DEFAULT_BUF_SIZE;
-        }
-        this.buf = new Uint8Array(size1);
-    }
-    reset(w) {
-        this.err = null;
-        this.usedBufferBytes = 0;
-        this.writer = w;
-    }
-    async flush() {
-        if (this.err !== null) throw this.err;
-        if (this.usedBufferBytes === 0) return;
-        try {
-            await writeAll(this.writer, this.buf.subarray(0, this.usedBufferBytes));
-        } catch (e) {
-            if (e instanceof Error) {
-                this.err = e;
-            }
-            throw e;
-        }
-        this.buf = new Uint8Array(this.buf.length);
-        this.usedBufferBytes = 0;
-    }
-    async write(data) {
-        if (this.err !== null) throw this.err;
-        if (data.length === 0) return 0;
-        let totalBytesWritten = 0;
-        let numBytesWritten = 0;
-        while(data.byteLength > this.available()){
-            if (this.buffered() === 0) {
-                try {
-                    numBytesWritten = await this.writer.write(data);
-                } catch (e) {
-                    if (e instanceof Error) {
-                        this.err = e;
-                    }
-                    throw e;
-                }
-            } else {
-                numBytesWritten = copy(data, this.buf, this.usedBufferBytes);
-                this.usedBufferBytes += numBytesWritten;
-                await this.flush();
-            }
-            totalBytesWritten += numBytesWritten;
-            data = data.subarray(numBytesWritten);
-        }
-        numBytesWritten = copy(data, this.buf, this.usedBufferBytes);
-        this.usedBufferBytes += numBytesWritten;
-        totalBytesWritten += numBytesWritten;
-        return totalBytesWritten;
-    }
-}
-class BufWriterSync extends AbstractBufBase {
-    writer;
-    static create(writer, size = 4096) {
-        return writer instanceof BufWriterSync ? writer : new BufWriterSync(writer, size);
-    }
-    constructor(writer2, size2 = 4096){
-        super();
-        this.writer = writer2;
-        if (size2 <= 0) {
-            size2 = DEFAULT_BUF_SIZE;
-        }
-        this.buf = new Uint8Array(size2);
-    }
-    reset(w) {
-        this.err = null;
-        this.usedBufferBytes = 0;
-        this.writer = w;
-    }
-    flush() {
-        if (this.err !== null) throw this.err;
-        if (this.usedBufferBytes === 0) return;
-        try {
-            writeAllSync(this.writer, this.buf.subarray(0, this.usedBufferBytes));
-        } catch (e) {
-            if (e instanceof Error) {
-                this.err = e;
-            }
-            throw e;
-        }
-        this.buf = new Uint8Array(this.buf.length);
-        this.usedBufferBytes = 0;
-    }
-    writeSync(data) {
-        if (this.err !== null) throw this.err;
-        if (data.length === 0) return 0;
-        let totalBytesWritten = 0;
-        let numBytesWritten = 0;
-        while(data.byteLength > this.available()){
-            if (this.buffered() === 0) {
-                try {
-                    numBytesWritten = this.writer.writeSync(data);
-                } catch (e) {
-                    if (e instanceof Error) {
-                        this.err = e;
-                    }
-                    throw e;
-                }
-            } else {
-                numBytesWritten = copy(data, this.buf, this.usedBufferBytes);
-                this.usedBufferBytes += numBytesWritten;
-                this.flush();
-            }
-            totalBytesWritten += numBytesWritten;
-            data = data.subarray(numBytesWritten);
-        }
-        numBytesWritten = copy(data, this.buf, this.usedBufferBytes);
-        this.usedBufferBytes += numBytesWritten;
-        totalBytesWritten += numBytesWritten;
-        return totalBytesWritten;
-    }
-}
-function createLPS(pat) {
-    const lps = new Uint8Array(pat.length);
-    lps[0] = 0;
-    let prefixEnd = 0;
-    let i = 1;
-    while(i < lps.length){
-        if (pat[i] == pat[prefixEnd]) {
-            prefixEnd++;
-            lps[i] = prefixEnd;
-            i++;
-        } else if (prefixEnd === 0) {
-            lps[i] = 0;
-            i++;
-        } else {
-            prefixEnd = lps[prefixEnd - 1];
-        }
-    }
-    return lps;
-}
-async function* readDelim(reader, delim) {
-    const delimLen = delim.length;
-    const delimLPS = createLPS(delim);
-    const chunks = new BytesList();
-    const bufSize = Math.max(1024, delimLen + 1);
-    let inspectIndex = 0;
-    let matchIndex = 0;
-    while(true){
-        const inspectArr = new Uint8Array(bufSize);
-        const result = await reader.read(inspectArr);
-        if (result === null) {
-            yield chunks.concat();
-            return;
-        } else if (result < 0) {
-            return;
-        }
-        chunks.add(inspectArr, 0, result);
-        let localIndex = 0;
-        while(inspectIndex < chunks.size()){
-            if (inspectArr[localIndex] === delim[matchIndex]) {
-                inspectIndex++;
-                localIndex++;
-                matchIndex++;
-                if (matchIndex === delimLen) {
-                    const matchEnd = inspectIndex - delimLen;
-                    const readyBytes = chunks.slice(0, matchEnd);
-                    yield readyBytes;
-                    chunks.shift(inspectIndex);
-                    inspectIndex = 0;
-                    matchIndex = 0;
-                }
-            } else {
-                if (matchIndex === 0) {
-                    inspectIndex++;
-                    localIndex++;
-                } else {
-                    matchIndex = delimLPS[matchIndex - 1];
-                }
-            }
-        }
-    }
-}
-async function* readStringDelim(reader, delim, decoderOpts) {
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder(decoderOpts?.encoding, decoderOpts);
-    for await (const chunk of readDelim(reader, encoder.encode(delim))){
-        yield decoder.decode(chunk);
-    }
-}
-async function* readLines(reader, decoderOpts) {
-    const bufReader = new BufReader(reader);
-    let chunks = [];
-    const decoder = new TextDecoder(decoderOpts?.encoding, decoderOpts);
-    while(true){
-        const res = await bufReader.readLine();
-        if (!res) {
-            if (chunks.length > 0) {
-                yield decoder.decode(concat(...chunks));
-            }
-            break;
-        }
-        chunks.push(res.line);
-        if (!res.more) {
-            yield decoder.decode(concat(...chunks));
-            chunks = [];
-        }
-    }
-}
-const DEFAULT_FORMATTER = "{levelName} {msg}";
-class BaseHandler {
-    level;
-    levelName;
-    formatter;
-    constructor(levelName2, options2 = {
-    }){
-        this.level = getLevelByName(levelName2);
-        this.levelName = levelName2;
-        this.formatter = options2.formatter || DEFAULT_FORMATTER;
-    }
-    handle(logRecord) {
-        if (this.level > logRecord.level) return;
-        const msg = this.format(logRecord);
-        return this.log(msg);
-    }
-    format(logRecord) {
-        if (this.formatter instanceof Function) {
-            return this.formatter(logRecord);
-        }
-        return this.formatter.replace(/{(\S+)}/g, (match, p1)=>{
-            const value = logRecord[p1];
-            if (value == null) {
-                return match;
-            }
-            return String(value);
-        });
-    }
-    log(_msg) {
-    }
-    async setup() {
-    }
-    async destroy() {
-    }
-}
-class ConsoleHandler extends BaseHandler {
-    format(logRecord) {
-        let msg = super.format(logRecord);
-        switch(logRecord.level){
-            case LogLevels.INFO:
-                msg = blue(msg);
-                break;
-            case LogLevels.WARNING:
-                msg = yellow(msg);
-                break;
-            case LogLevels.ERROR:
-                msg = red(msg);
-                break;
-            case LogLevels.CRITICAL:
-                msg = bold(red(msg));
-                break;
-            default: break;
-        }
-        return msg;
-    }
-    log(msg) {
-        console.log(msg);
-    }
-}
-class WriterHandler extends BaseHandler {
-    _writer;
-    #encoder = new TextEncoder();
-}
-class FileHandler extends WriterHandler {
-    _file;
-    _buf;
-    _filename;
-    _mode;
-    _openOptions;
-    _encoder = new TextEncoder();
-     #unloadCallback() {
-        this.destroy();
-    }
-    constructor(levelName3, options3){
-        super(levelName3, options3);
-        this._filename = options3.filename;
-        this._mode = options3.mode ? options3.mode : "a";
-        this._openOptions = {
-            createNew: this._mode === "x",
-            create: this._mode !== "x",
-            append: this._mode === "a",
-            truncate: this._mode !== "a",
-            write: true
-        };
-    }
-    async setup() {
-        this._file = await Deno.open(this._filename, this._openOptions);
-        this._writer = this._file;
-        this._buf = new BufWriterSync(this._file);
-        addEventListener("unload", this.#unloadCallback.bind(this));
-    }
-    handle(logRecord) {
-        super.handle(logRecord);
-        if (logRecord.level > LogLevels.ERROR) {
-            this.flush();
-        }
-    }
-    log(msg) {
-        this._buf.writeSync(this._encoder.encode(msg + "\n"));
-    }
-    flush() {
-        if (this._buf?.buffered() > 0) {
-            this._buf.flush();
-        }
-    }
-    destroy() {
-        this.flush();
-        this._file?.close();
-        this._file = undefined;
-        removeEventListener("unload", this.#unloadCallback);
-        return Promise.resolve();
-    }
-}
-class RotatingFileHandler extends FileHandler {
-    #maxBytes;
-    #maxBackupCount;
-    #currentFileSize = 0;
-    constructor(levelName4, options4){
-        super(levelName4, options4);
-        this.#maxBytes = options4.maxBytes;
-        this.#maxBackupCount = options4.maxBackupCount;
-    }
-    async setup() {
-        if (this.#maxBytes < 1) {
-            this.destroy();
-            throw new Error("maxBytes cannot be less than 1");
-        }
-        if (this.#maxBackupCount < 1) {
-            this.destroy();
-            throw new Error("maxBackupCount cannot be less than 1");
-        }
-        await super.setup();
-        if (this._mode === "w") {
-            for(let i = 1; i <= this.#maxBackupCount; i++){
-                if (await exists(this._filename + "." + i)) {
-                    await Deno.remove(this._filename + "." + i);
-                }
-            }
-        } else if (this._mode === "x") {
-            for(let i = 1; i <= this.#maxBackupCount; i++){
-                if (await exists(this._filename + "." + i)) {
-                    this.destroy();
-                    throw new Deno.errors.AlreadyExists("Backup log file " + this._filename + "." + i + " already exists");
-                }
-            }
-        } else {
-            this.#currentFileSize = (await Deno.stat(this._filename)).size;
-        }
-    }
-    log(msg) {
-        const msgByteLength = this._encoder.encode(msg).byteLength + 1;
-        if (this.#currentFileSize + msgByteLength > this.#maxBytes) {
-            this.rotateLogFiles();
-            this.#currentFileSize = 0;
-        }
-        this._buf.writeSync(this._encoder.encode(msg + "\n"));
-        this.#currentFileSize += msgByteLength;
-    }
-    rotateLogFiles() {
-        this._buf.flush();
-        Deno.close(this._file.rid);
-        for(let i = this.#maxBackupCount - 1; i >= 0; i--){
-            const source = this._filename + (i === 0 ? "" : "." + i);
-            const dest = this._filename + "." + (i + 1);
-            if (existsSync(source)) {
-                Deno.renameSync(source, dest);
-            }
-        }
-        this._file = Deno.openSync(this._filename, this._openOptions);
-        this._writer = this._file;
-        this._buf = new BufWriterSync(this._file);
-    }
-}
-class LoggerConfig {
-    level;
-    handlers;
-}
-const DEFAULT_LEVEL = "INFO";
-const DEFAULT_CONFIG = {
-    handlers: {
-        default: new ConsoleHandler(DEFAULT_LEVEL)
-    },
-    loggers: {
-        default: {
-            level: DEFAULT_LEVEL,
-            handlers: [
-                "default"
-            ]
-        }
-    }
-};
-const state1 = {
-    handlers: new Map(),
-    loggers: new Map(),
-    config: DEFAULT_CONFIG
-};
-const handlers1 = {
-    BaseHandler,
-    ConsoleHandler,
-    WriterHandler,
-    FileHandler,
-    RotatingFileHandler
-};
-function getLogger(name) {
-    if (!name) {
-        const d = state1.loggers.get("default");
-        assert(d != null, `"default" logger must be set for getting logger without name`);
-        return d;
-    }
-    const result = state1.loggers.get(name);
-    if (!result) {
-        const logger = new Logger(name, "NOTSET", {
-            handlers: []
-        });
-        state1.loggers.set(name, logger);
-        return logger;
-    }
-    return result;
-}
-function debug(msg, ...args) {
-    if (msg instanceof Function) {
-        return getLogger("default").debug(msg, ...args);
-    }
-    return getLogger("default").debug(msg, ...args);
-}
-function info(msg, ...args) {
-    if (msg instanceof Function) {
-        return getLogger("default").info(msg, ...args);
-    }
-    return getLogger("default").info(msg, ...args);
-}
-function warning(msg, ...args) {
-    if (msg instanceof Function) {
-        return getLogger("default").warning(msg, ...args);
-    }
-    return getLogger("default").warning(msg, ...args);
-}
-function error(msg, ...args) {
-    if (msg instanceof Function) {
-        return getLogger("default").error(msg, ...args);
-    }
-    return getLogger("default").error(msg, ...args);
-}
-function critical(msg, ...args) {
-    if (msg instanceof Function) {
-        return getLogger("default").critical(msg, ...args);
-    }
-    return getLogger("default").critical(msg, ...args);
-}
-async function setup(config) {
-    state1.config = {
-        handlers: {
-            ...DEFAULT_CONFIG.handlers,
-            ...config.handlers
-        },
-        loggers: {
-            ...DEFAULT_CONFIG.loggers,
-            ...config.loggers
-        }
-    };
-    state1.handlers.forEach((handler)=>{
-        handler.destroy();
-    });
-    state1.handlers.clear();
-    const handlers = state1.config.handlers || {
-    };
-    for(const handlerName in handlers){
-        const handler = handlers[handlerName];
-        await handler.setup();
-        state1.handlers.set(handlerName, handler);
-    }
-    state1.loggers.clear();
-    const loggers = state1.config.loggers || {
-    };
-    for(const loggerName in loggers){
-        const loggerConfig = loggers[loggerName];
-        const handlerNames = loggerConfig.handlers || [];
-        const handlers = [];
-        handlerNames.forEach((handlerName)=>{
-            const handler = state1.handlers.get(handlerName);
-            if (handler) {
-                handlers.push(handler);
-            }
-        });
-        const levelName = loggerConfig.level || DEFAULT_LEVEL;
-        const logger = new Logger(loggerName, levelName, {
-            handlers: handlers
-        });
-        state1.loggers.set(loggerName, logger);
-    }
-}
-await setup(DEFAULT_CONFIG);
-const mod = await async function() {
-    return {
-        LogLevels: LogLevels,
-        Logger: Logger,
-        LoggerConfig: LoggerConfig,
-        handlers: handlers1,
-        getLogger: getLogger,
-        debug: debug,
-        info: info,
-        warning: warning,
-        error: error,
-        critical: critical,
-        setup: setup
-    };
-}();
 const SECONDS_A_HOUR = 60 * 60;
 const SECONDS_A_DAY = SECONDS_A_HOUR * 24;
 const SECONDS_A_WEEK = SECONDS_A_DAY * 7;
@@ -1852,35 +443,35 @@ dayjs1.en = Ls[L];
 dayjs1.Ls = Ls;
 dayjs1.p = {
 };
-const noColor1 = globalThis.Deno?.noColor ?? true;
-let enabled1 = !noColor1;
-function code1(open, close) {
+const noColor = globalThis.Deno?.noColor ?? true;
+let enabled = !noColor;
+function code(open, close) {
     return {
         open: `\x1b[${open.join(";")}m`,
         close: `\x1b[${close}m`,
         regexp: new RegExp(`\\x1b\\[${close}m`, "g")
     };
 }
-function run1(str, code) {
-    return enabled1 ? `${code.open}${str.replace(code.regexp, code.open)}${code.close}` : str;
+function run(str, code) {
+    return enabled ? `${code.open}${str.replace(code.regexp, code.open)}${code.close}` : str;
 }
-function bold1(str) {
-    return run1(str, code1([
+function bold(str) {
+    return run(str, code([
         1
     ], 22));
 }
-function red1(str) {
-    return run1(str, code1([
+function red(str) {
+    return run(str, code([
         31
     ], 39));
 }
 function green(str) {
-    return run1(str, code1([
+    return run(str, code([
         32
     ], 39));
 }
 function white(str) {
-    return run1(str, code1([
+    return run(str, code([
         37
     ], 39));
 }
@@ -1888,20 +479,20 @@ function gray(str) {
     return brightBlack(str);
 }
 function brightBlack(str) {
-    return run1(str, code1([
+    return run(str, code([
         90
     ], 39));
 }
-const ANSI_PATTERN1 = new RegExp([
+const ANSI_PATTERN = new RegExp([
     "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
     "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))", 
 ].join("|"), "g");
-var DiffType1;
+var DiffType;
 (function(DiffType) {
     DiffType["removed"] = "removed";
     DiffType["common"] = "common";
     DiffType["added"] = "added";
-})(DiffType1 || (DiffType1 = {
+})(DiffType || (DiffType = {
 }));
 const REMOVED = 1;
 const COMMON = 2;
@@ -1937,17 +528,17 @@ function diff(A, B) {
     if (!N) {
         return [
             ...prefixCommon.map((c)=>({
-                    type: DiffType1.common,
+                    type: DiffType.common,
                     value: c
                 })
             ),
             ...A.map((a)=>({
-                    type: swapped ? DiffType1.added : DiffType1.removed,
+                    type: swapped ? DiffType.added : DiffType.removed,
                     value: a
                 })
             ),
             ...suffixCommon.map((c)=>({
-                    type: DiffType1.common,
+                    type: DiffType.common,
                     value: c
                 })
             ), 
@@ -1976,19 +567,19 @@ function diff(A, B) {
             const prev = j;
             if (type === 1) {
                 result.unshift({
-                    type: swapped ? DiffType1.removed : DiffType1.added,
+                    type: swapped ? DiffType.removed : DiffType.added,
                     value: B[b]
                 });
                 b -= 1;
             } else if (type === 3) {
                 result.unshift({
-                    type: swapped ? DiffType1.added : DiffType1.removed,
+                    type: swapped ? DiffType.added : DiffType.removed,
                     value: A[a]
                 });
                 a -= 1;
             } else {
                 result.unshift({
-                    type: DiffType1.common,
+                    type: DiffType.common,
                     value: A[a]
                 });
                 a -= 1;
@@ -2056,22 +647,22 @@ function diff(A, B) {
     }
     return [
         ...prefixCommon.map((c)=>({
-                type: DiffType1.common,
+                type: DiffType.common,
                 value: c
             })
         ),
         ...backTrace(A, B, fp[delta + offset], swapped),
         ...suffixCommon.map((c)=>({
-                type: DiffType1.common,
+                type: DiffType.common,
                 value: c
             })
         ), 
     ];
 }
 const CAN_NOT_DISPLAY = "[Cannot display]";
-class AssertionError1 extends Error {
-    constructor(message2){
-        super(message2);
+class AssertionError extends Error {
+    constructor(message){
+        super(message);
         this.name = "AssertionError";
     }
 }
@@ -2086,11 +677,11 @@ function _format(v) {
 }
 function createColor(diffType) {
     switch(diffType){
-        case DiffType1.added:
-            return (s)=>green(bold1(s))
+        case DiffType.added:
+            return (s)=>green(bold(s))
             ;
-        case DiffType1.removed:
-            return (s)=>red1(bold1(s))
+        case DiffType.removed:
+            return (s)=>red(bold(s))
             ;
         default:
             return white;
@@ -2098,9 +689,9 @@ function createColor(diffType) {
 }
 function createSign(diffType) {
     switch(diffType){
-        case DiffType1.added:
+        case DiffType.added:
             return "+   ";
-        case DiffType1.removed:
+        case DiffType.removed:
             return "-   ";
         default:
             return "    ";
@@ -2110,7 +701,7 @@ function buildMessage(diffResult) {
     const messages = [];
     messages.push("");
     messages.push("");
-    messages.push(`    ${gray(bold1("[Diff]"))} ${red1(bold1("Actual"))} / ${green(bold1("Expected"))}`);
+    messages.push(`    ${gray(bold("[Diff]"))} ${red(bold("Actual"))} / ${green(bold("Expected"))}`);
     messages.push("");
     messages.push("");
     diffResult.forEach((result)=>{
@@ -2219,7 +810,7 @@ function assertNotEquals(actual, expected, msg) {
     if (!msg) {
         msg = `actual: ${actualString} expected: ${expectedString}`;
     }
-    throw new AssertionError1(msg);
+    throw new AssertionError(msg);
 }
 function assertStrictEquals(actual, expected, msg) {
     if (actual === expected) {
@@ -2234,18 +825,18 @@ function assertStrictEquals(actual, expected, msg) {
         if (actualString === expectedString) {
             const withOffset = actualString.split("\n").map((l)=>`    ${l}`
             ).join("\n");
-            message = `Values have the same structure but are not reference-equal:\n\n${red1(withOffset)}\n`;
+            message = `Values have the same structure but are not reference-equal:\n\n${red(withOffset)}\n`;
         } else {
             try {
                 const diffResult = diff(actualString.split("\n"), expectedString.split("\n"));
                 const diffMsg = buildMessage(diffResult).join("\n");
                 message = `Values are not strictly equal:\n${diffMsg}`;
             } catch  {
-                message = `\n${red1(CAN_NOT_DISPLAY)} + \n\n`;
+                message = `\n${red(CAN_NOT_DISPLAY)} + \n\n`;
             }
         }
     }
-    throw new AssertionError1(message);
+    throw new AssertionError(message);
 }
 const osType = (()=>{
     if (globalThis.Deno != null) {
@@ -2347,15 +938,15 @@ function encodeWhitespace(string) {
         return WHITESPACE_ENCODINGS[c] ?? c;
     });
 }
-class DenoStdInternalError1 extends Error {
-    constructor(message3){
-        super(message3);
+class DenoStdInternalError extends Error {
+    constructor(message1){
+        super(message1);
         this.name = "DenoStdInternalError";
     }
 }
-function assert2(expr, msg = "") {
+function assert(expr, msg = "") {
     if (!expr) {
-        throw new DenoStdInternalError1(msg);
+        throw new DenoStdInternalError(msg);
     }
 }
 const sep6 = "\\";
@@ -2564,7 +1155,7 @@ function join(...paths) {
     if (joined === undefined) return ".";
     let needsReplace = true;
     let slashCount = 0;
-    assert2(firstPart != null);
+    assert(firstPart != null);
     if (isPathSeparator(firstPart.charCodeAt(0))) {
         ++slashCount;
         const firstLen = firstPart.length;
@@ -2977,7 +1568,7 @@ function toFileUrl(path) {
     }
     return url;
 }
-const mod1 = function() {
+const mod = function() {
     return {
         sep: sep6,
         delimiter: delimiter,
@@ -3309,7 +1900,7 @@ function toFileUrl1(path) {
     url.pathname = encodeWhitespace(path.replace(/%/g, "%25").replace(/\\/g, "%5C"));
     return url;
 }
-const mod2 = function() {
+const mod1 = function() {
     return {
         sep: sep1,
         delimiter: delimiter1,
@@ -3328,7 +1919,7 @@ const mod2 = function() {
         toFileUrl: toFileUrl1
     };
 }();
-const path4 = isWindows ? mod1 : mod2;
+const path4 = isWindows ? mod : mod1;
 const { basename: basename2 , delimiter: delimiter2 , dirname: dirname2 , extname: extname2 , format: format2 , fromFileUrl: fromFileUrl2 , isAbsolute: isAbsolute2 , join: join2 , normalize: normalize2 , parse: parse2 , relative: relative2 , resolve: resolve2 , sep: sep2 , toFileUrl: toFileUrl2 , toNamespacedPath: toNamespacedPath2 ,  } = path4;
 const align = {
     right: alignRight,
@@ -4573,8 +3164,8 @@ const parser = new YargsParser({
     format: (str, arg)=>{
         return str.replace('%s', arg);
     },
-    normalize: mod2.normalize,
-    resolve: mod2.resolve,
+    normalize: mod1.normalize,
+    resolve: mod1.resolve,
     require: (path)=>{
         if (!path.match(/\.json$/)) {
             throw Error('only .json config files are supported in Deno');
@@ -5322,7 +3913,7 @@ const __default3 = {
     format: sprintf,
     resolve: (base, p1, p2)=>{
         try {
-            return mod2.resolve(base, p1, p2);
+            return mod1.resolve(base, p1, p2);
         } catch (err) {
         }
     },
@@ -5372,7 +3963,7 @@ const path1 = {
     extname: extname2,
     relative: (p1, p2)=>{
         try {
-            return mod2.relative(p1, p2);
+            return mod1.relative(p1, p2);
         } catch (err) {
             if (err.name !== 'PermissionDenied') {
                 throw err;
@@ -5380,7 +3971,7 @@ const path1 = {
             return p1;
         }
     },
-    resolve: mod2.resolve
+    resolve: mod1.resolve
 };
 const __default4 = {
     assert: {
@@ -5430,7 +4021,7 @@ const __default4 = {
         ].length;
     },
     y18n: y18n1({
-        directory: mod2.resolve(__dirname, '../../locales'),
+        directory: mod1.resolve(__dirname, '../../locales'),
         updateFiles: false
     })
 };
@@ -8856,6 +7447,17 @@ function encodeWhitespace1(string) {
         return WHITESPACE_ENCODINGS1[c] ?? c;
     });
 }
+class DenoStdInternalError1 extends Error {
+    constructor(message2){
+        super(message2);
+        this.name = "DenoStdInternalError";
+    }
+}
+function assert1(expr, msg = "") {
+    if (!expr) {
+        throw new DenoStdInternalError1(msg);
+    }
+}
 const sep3 = "\\";
 const delimiter3 = ";";
 function resolve3(...pathSegments) {
@@ -9063,7 +7665,7 @@ function join3(...paths) {
     if (joined === undefined) return ".";
     let needsReplace = true;
     let slashCount = 0;
-    assert(firstPart != null);
+    assert1(firstPart != null);
     if (isPathSeparator1(firstPart.charCodeAt(0))) {
         ++slashCount;
         const firstLen = firstPart.length;
@@ -9476,7 +8078,7 @@ function toFileUrl3(path) {
     }
     return url;
 }
-const mod3 = function() {
+const mod2 = function() {
     return {
         sep: sep3,
         delimiter: delimiter3,
@@ -9809,7 +8411,7 @@ function toFileUrl4(path) {
     url.pathname = encodeWhitespace1(path.replace(/%/g, "%25").replace(/\\/g, "%5C"));
     return url;
 }
-const mod4 = function() {
+const mod3 = function() {
     return {
         sep: sep4,
         delimiter: delimiter4,
@@ -9851,7 +8453,7 @@ function common(paths, sep = SEP) {
     const prefix = parts.slice(0, endOfPrefix).join(sep);
     return prefix.endsWith(sep) ? prefix : `${prefix}${sep}`;
 }
-const path2 = isWindows1 ? mod3 : mod4;
+const path2 = isWindows1 ? mod2 : mod3;
 const { join: join5 , normalize: normalize5  } = path2;
 const regExpEscapeChars = [
     "!",
@@ -10130,14 +8732,14 @@ function joinGlobs(globs, { extended =false , globstar =false  } = {
         globstar
     });
 }
-const path3 = isWindows1 ? mod3 : mod4;
+const path3 = isWindows1 ? mod2 : mod3;
 const { basename: basename5 , delimiter: delimiter5 , dirname: dirname5 , extname: extname5 , format: format7 , fromFileUrl: fromFileUrl5 , isAbsolute: isAbsolute5 , join: join6 , normalize: normalize6 , parse: parse5 , relative: relative5 , resolve: resolve5 , sep: sep5 , toFileUrl: toFileUrl5 , toNamespacedPath: toNamespacedPath5 ,  } = path3;
-const mod5 = function() {
+const mod4 = function() {
     return {
         SEP: SEP,
         SEP_PATTERN: SEP_PATTERN,
-        win32: mod3,
-        posix: mod4,
+        win32: mod2,
+        posix: mod3,
         basename: basename5,
         delimiter: delimiter5,
         dirname: dirname5,
@@ -10282,6 +8884,28 @@ function ensureFileSync(filePath) {
         throw err;
     }
 }
+async function exists(filePath) {
+    try {
+        await Deno.lstat(filePath);
+        return true;
+    } catch (err) {
+        if (err instanceof Deno.errors.NotFound) {
+            return false;
+        }
+        throw err;
+    }
+}
+function existsSync(filePath) {
+    try {
+        Deno.lstatSync(filePath);
+        return true;
+    } catch (err) {
+        if (err instanceof Deno.errors.NotFound) {
+            return false;
+        }
+        throw err;
+    }
+}
 async function ensureLink(src, dest) {
     if (await exists(dest)) {
         const destStatInfo = await Deno.lstat(dest);
@@ -10401,7 +9025,7 @@ async function* walk(root, { maxDepth =Infinity , includeFiles =true , includeDi
     }
     try {
         for await (const entry of Deno.readDir(root)){
-            assert(entry.name != null);
+            assert1(entry.name != null);
             let path = join6(root, entry.name);
             if (entry.isSymlink) {
                 if (followSymlinks) {
@@ -10451,7 +9075,7 @@ function* walkSync(root, { maxDepth =Infinity , includeFiles =true , includeDirs
         throw wrapErrorWithRootPath(err, normalize6(root));
     }
     for (const entry of entries){
-        assert(entry.name != null);
+        assert1(entry.name != null);
         let path = join6(root, entry.name);
         if (entry.isSymlink) {
             if (followSymlinks) {
@@ -10526,7 +9150,7 @@ async function* expandGlob(glob, { root =Deno.cwd() , exclude =[] , includeDirs 
     let fixedRoot = winRoot != undefined ? winRoot : "/";
     while(segments.length > 0 && !isGlob(segments[0])){
         const seg = segments.shift();
-        assert(seg != null);
+        assert1(seg != null);
         fixedRoot = joinGlobs([
             fixedRoot,
             seg
@@ -10620,7 +9244,7 @@ function* expandGlobSync(glob, { root =Deno.cwd() , exclude =[] , includeDirs =t
     let fixedRoot = winRoot != undefined ? winRoot : "/";
     while(segments.length > 0 && !isGlob(segments[0])){
         const seg = segments.shift();
-        assert(seg != null);
+        assert1(seg != null);
         fixedRoot = joinGlobs([
             fixedRoot,
             seg
@@ -10769,8 +9393,8 @@ async function copyFile(src, dest, options) {
     await Deno.copyFile(src, dest);
     if (options.preserveTimestamps) {
         const statInfo = await Deno.stat(src);
-        assert(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
-        assert(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
+        assert1(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
+        assert1(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
         await Deno.utime(dest, statInfo.atime, statInfo.mtime);
     }
 }
@@ -10779,8 +9403,8 @@ function copyFileSync(src, dest, options) {
     Deno.copyFileSync(src, dest);
     if (options.preserveTimestamps) {
         const statInfo = Deno.statSync(src);
-        assert(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
-        assert(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
+        assert1(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
+        assert1(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
         Deno.utimeSync(dest, statInfo.atime, statInfo.mtime);
     }
 }
@@ -10797,8 +9421,8 @@ async function copySymLink(src, dest, options) {
     }
     if (options.preserveTimestamps) {
         const statInfo = await Deno.lstat(src);
-        assert(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
-        assert(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
+        assert1(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
+        assert1(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
         await Deno.utime(dest, statInfo.atime, statInfo.mtime);
     }
 }
@@ -10815,8 +9439,8 @@ function copySymlinkSync(src, dest, options) {
     }
     if (options.preserveTimestamps) {
         const statInfo = Deno.lstatSync(src);
-        assert(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
-        assert(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
+        assert1(statInfo.atime instanceof Date, `statInfo.atime is unavailable`);
+        assert1(statInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
         Deno.utimeSync(dest, statInfo.atime, statInfo.mtime);
     }
 }
@@ -10830,8 +9454,8 @@ async function copyDir(src, dest, options) {
     }
     if (options.preserveTimestamps) {
         const srcStatInfo = await Deno.stat(src);
-        assert(srcStatInfo.atime instanceof Date, `statInfo.atime is unavailable`);
-        assert(srcStatInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
+        assert1(srcStatInfo.atime instanceof Date, `statInfo.atime is unavailable`);
+        assert1(srcStatInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
         await Deno.utime(dest, srcStatInfo.atime, srcStatInfo.mtime);
     }
     for await (const entry of Deno.readDir(src)){
@@ -10856,12 +9480,12 @@ function copyDirSync(src, dest, options) {
     }
     if (options.preserveTimestamps) {
         const srcStatInfo = Deno.statSync(src);
-        assert(srcStatInfo.atime instanceof Date, `statInfo.atime is unavailable`);
-        assert(srcStatInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
+        assert1(srcStatInfo.atime instanceof Date, `statInfo.atime is unavailable`);
+        assert1(srcStatInfo.mtime instanceof Date, `statInfo.mtime is unavailable`);
         Deno.utimeSync(dest, srcStatInfo.atime, srcStatInfo.mtime);
     }
     for (const entry of Deno.readDirSync(src)){
-        assert(entry.name != null, "file.name must be set");
+        assert1(entry.name != null, "file.name must be set");
         const srcPath = join6(src, entry.name);
         const destPath = join6(dest, basename5(srcPath));
         if (entry.isSymlink) {
@@ -10873,7 +9497,7 @@ function copyDirSync(src, dest, options) {
         }
     }
 }
-async function copy2(src, dest, options = {
+async function copy(src, dest, options = {
 }) {
     src = resolve5(src);
     dest = resolve5(dest);
@@ -10930,10 +9554,8 @@ function detect(content) {
 function format8(content, eol) {
     return content.replace(regDetect, eol);
 }
-const mod6 = function() {
+const mod5 = function() {
     return {
-        exists,
-        existsSync,
         emptyDir,
         emptyDirSync,
         ensureDir,
@@ -10942,6 +9564,8 @@ const mod6 = function() {
         ensureFileSync,
         ensureLink,
         ensureLinkSync,
+        exists,
+        existsSync,
         ensureSymlink,
         ensureSymlinkSync,
         expandGlob,
@@ -10952,13 +9576,931 @@ const mod6 = function() {
         walkSync,
         move,
         moveSync,
-        copy: copy2,
+        copy,
         copySync,
         EOL,
         detect,
         format: format8
     };
 }();
+function concat(...buf) {
+    let length = 0;
+    for (const b of buf){
+        length += b.length;
+    }
+    const output = new Uint8Array(length);
+    let index = 0;
+    for (const b1 of buf){
+        output.set(b1, index);
+        index += b1.length;
+    }
+    return output;
+}
+function copy1(src, dst, off = 0) {
+    off = Math.max(0, Math.min(off, dst.byteLength));
+    const dstBytesAvailable = dst.byteLength - off;
+    if (src.byteLength > dstBytesAvailable) {
+        src = src.subarray(0, dstBytesAvailable);
+    }
+    dst.set(src, off);
+    return src.byteLength;
+}
+const MIN_READ = 32 * 1024;
+const MAX_SIZE = 2 ** 32 - 2;
+class Buffer {
+    #buf;
+    #off = 0;
+    constructor(ab){
+        this.#buf = ab === undefined ? new Uint8Array(0) : new Uint8Array(ab);
+    }
+    bytes(options = {
+        copy: true
+    }) {
+        if (options.copy === false) return this.#buf.subarray(this.#off);
+        return this.#buf.slice(this.#off);
+    }
+    empty() {
+        return this.#buf.byteLength <= this.#off;
+    }
+    get length() {
+        return this.#buf.byteLength - this.#off;
+    }
+    get capacity() {
+        return this.#buf.buffer.byteLength;
+    }
+    truncate(n) {
+        if (n === 0) {
+            this.reset();
+            return;
+        }
+        if (n < 0 || n > this.length) {
+            throw Error("bytes.Buffer: truncation out of range");
+        }
+        this.#reslice(this.#off + n);
+    }
+    reset() {
+        this.#reslice(0);
+        this.#off = 0;
+    }
+     #tryGrowByReslice(n) {
+        const l = this.#buf.byteLength;
+        if (n <= this.capacity - l) {
+            this.#reslice(l + n);
+            return l;
+        }
+        return -1;
+    }
+     #reslice(len1) {
+        assert1(len1 <= this.#buf.buffer.byteLength);
+        this.#buf = new Uint8Array(this.#buf.buffer, 0, len1);
+    }
+    readSync(p) {
+        if (this.empty()) {
+            this.reset();
+            if (p.byteLength === 0) {
+                return 0;
+            }
+            return null;
+        }
+        const nread = copy1(this.#buf.subarray(this.#off), p);
+        this.#off += nread;
+        return nread;
+    }
+    read(p) {
+        const rr = this.readSync(p);
+        return Promise.resolve(rr);
+    }
+    writeSync(p) {
+        const m = this.#grow(p.byteLength);
+        return copy1(p, this.#buf, m);
+    }
+    write(p) {
+        const n = this.writeSync(p);
+        return Promise.resolve(n);
+    }
+     #grow(n1) {
+        const m = this.length;
+        if (m === 0 && this.#off !== 0) {
+            this.reset();
+        }
+        const i = this.#tryGrowByReslice(n1);
+        if (i >= 0) {
+            return i;
+        }
+        const c = this.capacity;
+        if (n1 <= Math.floor(c / 2) - m) {
+            copy1(this.#buf.subarray(this.#off), this.#buf);
+        } else if (c + n1 > MAX_SIZE) {
+            throw new Error("The buffer cannot be grown beyond the maximum size.");
+        } else {
+            const buf = new Uint8Array(Math.min(2 * c + n1, MAX_SIZE));
+            copy1(this.#buf.subarray(this.#off), buf);
+            this.#buf = buf;
+        }
+        this.#off = 0;
+        this.#reslice(Math.min(m + n1, MAX_SIZE));
+        return m;
+    }
+    grow(n) {
+        if (n < 0) {
+            throw Error("Buffer.grow: negative count");
+        }
+        const m = this.#grow(n);
+        this.#reslice(m);
+    }
+    async readFrom(r) {
+        let n = 0;
+        const tmp = new Uint8Array(MIN_READ);
+        while(true){
+            const shouldGrow = this.capacity - this.length < MIN_READ;
+            const buf = shouldGrow ? tmp : new Uint8Array(this.#buf.buffer, this.length);
+            const nread = await r.read(buf);
+            if (nread === null) {
+                return n;
+            }
+            if (shouldGrow) this.writeSync(buf.subarray(0, nread));
+            else this.#reslice(this.length + nread);
+            n += nread;
+        }
+    }
+    readFromSync(r) {
+        let n = 0;
+        const tmp = new Uint8Array(MIN_READ);
+        while(true){
+            const shouldGrow = this.capacity - this.length < MIN_READ;
+            const buf = shouldGrow ? tmp : new Uint8Array(this.#buf.buffer, this.length);
+            const nread = r.readSync(buf);
+            if (nread === null) {
+                return n;
+            }
+            if (shouldGrow) this.writeSync(buf.subarray(0, nread));
+            else this.#reslice(this.length + nread);
+            n += nread;
+        }
+    }
+}
+class BytesList {
+    len = 0;
+    chunks = [];
+    constructor(){
+    }
+    size() {
+        return this.len;
+    }
+    add(value, start = 0, end = value.byteLength) {
+        if (value.byteLength === 0 || end - start === 0) {
+            return;
+        }
+        checkRange(start, end, value.byteLength);
+        this.chunks.push({
+            value,
+            end,
+            start,
+            offset: this.len
+        });
+        this.len += end - start;
+    }
+    shift(n) {
+        if (n === 0) {
+            return;
+        }
+        if (this.len <= n) {
+            this.chunks = [];
+            this.len = 0;
+            return;
+        }
+        const idx = this.getChunkIndex(n);
+        this.chunks.splice(0, idx);
+        const [chunk] = this.chunks;
+        if (chunk) {
+            const diff = n - chunk.offset;
+            chunk.start += diff;
+        }
+        let offset = 0;
+        for (const chunk1 of this.chunks){
+            chunk1.offset = offset;
+            offset += chunk1.end - chunk1.start;
+        }
+        this.len = offset;
+    }
+    getChunkIndex(pos) {
+        let max = this.chunks.length;
+        let min = 0;
+        while(true){
+            const i = min + Math.floor((max - min) / 2);
+            if (i < 0 || this.chunks.length <= i) {
+                return -1;
+            }
+            const { offset , start , end  } = this.chunks[i];
+            const len = end - start;
+            if (offset <= pos && pos < offset + len) {
+                return i;
+            } else if (offset + len <= pos) {
+                min = i + 1;
+            } else {
+                max = i - 1;
+            }
+        }
+    }
+    get(i) {
+        if (i < 0 || this.len <= i) {
+            throw new Error("out of range");
+        }
+        const idx = this.getChunkIndex(i);
+        const { value , offset , start  } = this.chunks[idx];
+        return value[start + i - offset];
+    }
+    *iterator(start = 0) {
+        const startIdx = this.getChunkIndex(start);
+        if (startIdx < 0) return;
+        const first = this.chunks[startIdx];
+        let firstOffset = start - first.offset;
+        for(let i = startIdx; i < this.chunks.length; i++){
+            const chunk = this.chunks[i];
+            for(let j = chunk.start + firstOffset; j < chunk.end; j++){
+                yield chunk.value[j];
+            }
+            firstOffset = 0;
+        }
+    }
+    slice(start, end = this.len) {
+        if (end === start) {
+            return new Uint8Array();
+        }
+        checkRange(start, end, this.len);
+        const result = new Uint8Array(end - start);
+        const startIdx = this.getChunkIndex(start);
+        const endIdx = this.getChunkIndex(end - 1);
+        let written = 0;
+        for(let i = startIdx; i < endIdx; i++){
+            const chunk = this.chunks[i];
+            const len = chunk.end - chunk.start;
+            result.set(chunk.value.subarray(chunk.start, chunk.end), written);
+            written += len;
+        }
+        const last = this.chunks[endIdx];
+        const rest = end - start - written;
+        result.set(last.value.subarray(last.start, last.start + rest), written);
+        return result;
+    }
+    concat() {
+        const result = new Uint8Array(this.len);
+        let sum = 0;
+        for (const { value , start , end  } of this.chunks){
+            result.set(value.subarray(start, end), sum);
+            sum += end - start;
+        }
+        return result;
+    }
+}
+function checkRange(start, end, len) {
+    if (start < 0 || len < start || end < 0 || len < end || end < start) {
+        throw new Error("invalid range");
+    }
+}
+const { Deno: Deno1  } = globalThis;
+const noColor1 = typeof Deno1?.noColor === "boolean" ? Deno1.noColor : true;
+let enabled1 = !noColor1;
+function code1(open, close) {
+    return {
+        open: `\x1b[${open.join(";")}m`,
+        close: `\x1b[${close}m`,
+        regexp: new RegExp(`\\x1b\\[${close}m`, "g")
+    };
+}
+function run1(str, code) {
+    return enabled1 ? `${code.open}${str.replace(code.regexp, code.open)}${code.close}` : str;
+}
+function bold1(str) {
+    return run1(str, code1([
+        1
+    ], 22));
+}
+function red1(str) {
+    return run1(str, code1([
+        31
+    ], 39));
+}
+function yellow(str) {
+    return run1(str, code1([
+        33
+    ], 39));
+}
+function blue(str) {
+    return run1(str, code1([
+        34
+    ], 39));
+}
+const ANSI_PATTERN1 = new RegExp([
+    "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
+    "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))", 
+].join("|"), "g");
+var DiffType1;
+(function(DiffType) {
+    DiffType["removed"] = "removed";
+    DiffType["common"] = "common";
+    DiffType["added"] = "added";
+})(DiffType1 || (DiffType1 = {
+}));
+class AssertionError1 extends Error {
+    name = "AssertionError";
+    constructor(message3){
+        super(message3);
+    }
+}
+function assert2(expr, msg = "") {
+    if (!expr) {
+        throw new AssertionError1(msg);
+    }
+}
+const DEFAULT_BUFFER_SIZE = 32 * 1024;
+async function readAll(r) {
+    const buf = new Buffer();
+    await buf.readFrom(r);
+    return buf.bytes();
+}
+function readAllSync(r) {
+    const buf = new Buffer();
+    buf.readFromSync(r);
+    return buf.bytes();
+}
+async function readRange(r, range) {
+    let length = range.end - range.start + 1;
+    assert2(length > 0, "Invalid byte range was passed.");
+    await r.seek(range.start, Deno.SeekMode.Start);
+    const result = new Uint8Array(length);
+    let off = 0;
+    while(length){
+        const p = new Uint8Array(Math.min(length, DEFAULT_BUFFER_SIZE));
+        const nread = await r.read(p);
+        assert2(nread !== null, "Unexpected EOF reach while reading a range.");
+        assert2(nread > 0, "Unexpected read of 0 bytes while reading a range.");
+        copy1(p, result, off);
+        off += nread;
+        length -= nread;
+        assert2(length >= 0, "Unexpected length remaining after reading range.");
+    }
+    return result;
+}
+function readRangeSync(r, range) {
+    let length = range.end - range.start + 1;
+    assert2(length > 0, "Invalid byte range was passed.");
+    r.seekSync(range.start, Deno.SeekMode.Start);
+    const result = new Uint8Array(length);
+    let off = 0;
+    while(length){
+        const p = new Uint8Array(Math.min(length, DEFAULT_BUFFER_SIZE));
+        const nread = r.readSync(p);
+        assert2(nread !== null, "Unexpected EOF reach while reading a range.");
+        assert2(nread > 0, "Unexpected read of 0 bytes while reading a range.");
+        copy1(p, result, off);
+        off += nread;
+        length -= nread;
+        assert2(length >= 0, "Unexpected length remaining after reading range.");
+    }
+    return result;
+}
+async function writeAll(w, arr) {
+    let nwritten = 0;
+    while(nwritten < arr.length){
+        nwritten += await w.write(arr.subarray(nwritten));
+    }
+}
+function writeAllSync(w, arr) {
+    let nwritten = 0;
+    while(nwritten < arr.length){
+        nwritten += w.writeSync(arr.subarray(nwritten));
+    }
+}
+async function* iter(r, options) {
+    const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
+    const b = new Uint8Array(bufSize);
+    while(true){
+        const result = await r.read(b);
+        if (result === null) {
+            break;
+        }
+        yield b.subarray(0, result);
+    }
+}
+function* iterSync(r, options) {
+    const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
+    const b = new Uint8Array(bufSize);
+    while(true){
+        const result = r.readSync(b);
+        if (result === null) {
+            break;
+        }
+        yield b.subarray(0, result);
+    }
+}
+async function copy2(src, dst, options) {
+    let n = 0;
+    const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
+    const b = new Uint8Array(bufSize);
+    let gotEOF = false;
+    while(gotEOF === false){
+        const result = await src.read(b);
+        if (result === null) {
+            gotEOF = true;
+        } else {
+            let nwritten = 0;
+            while(nwritten < result){
+                nwritten += await dst.write(b.subarray(nwritten, result));
+            }
+            n += nwritten;
+        }
+    }
+    return n;
+}
+const DEFAULT_BUF_SIZE = 4096;
+const MIN_BUF_SIZE = 16;
+const CR = "\r".charCodeAt(0);
+const LF = "\n".charCodeAt(0);
+class BufferFullError extends Error {
+    partial;
+    name = "BufferFullError";
+    constructor(partial1){
+        super("Buffer full");
+        this.partial = partial1;
+    }
+}
+class PartialReadError extends Error {
+    name = "PartialReadError";
+    partial;
+    constructor(){
+        super("Encountered UnexpectedEof, data only partially read");
+    }
+}
+class BufReader {
+    buf;
+    rd;
+    r = 0;
+    w = 0;
+    eof = false;
+    static create(r, size = 4096) {
+        return r instanceof BufReader ? r : new BufReader(r, size);
+    }
+    constructor(rd1, size = 4096){
+        if (size < 16) {
+            size = MIN_BUF_SIZE;
+        }
+        this._reset(new Uint8Array(size), rd1);
+    }
+    size() {
+        return this.buf.byteLength;
+    }
+    buffered() {
+        return this.w - this.r;
+    }
+    async _fill() {
+        if (this.r > 0) {
+            this.buf.copyWithin(0, this.r, this.w);
+            this.w -= this.r;
+            this.r = 0;
+        }
+        if (this.w >= this.buf.byteLength) {
+            throw Error("bufio: tried to fill full buffer");
+        }
+        for(let i = 100; i > 0; i--){
+            const rr = await this.rd.read(this.buf.subarray(this.w));
+            if (rr === null) {
+                this.eof = true;
+                return;
+            }
+            assert1(rr >= 0, "negative read");
+            this.w += rr;
+            if (rr > 0) {
+                return;
+            }
+        }
+        throw new Error(`No progress after ${100} read() calls`);
+    }
+    reset(r) {
+        this._reset(this.buf, r);
+    }
+    _reset(buf, rd) {
+        this.buf = buf;
+        this.rd = rd;
+        this.eof = false;
+    }
+    async read(p) {
+        let rr = p.byteLength;
+        if (p.byteLength === 0) return rr;
+        if (this.r === this.w) {
+            if (p.byteLength >= this.buf.byteLength) {
+                const rr = await this.rd.read(p);
+                const nread = rr ?? 0;
+                assert1(nread >= 0, "negative read");
+                return rr;
+            }
+            this.r = 0;
+            this.w = 0;
+            rr = await this.rd.read(this.buf);
+            if (rr === 0 || rr === null) return rr;
+            assert1(rr >= 0, "negative read");
+            this.w += rr;
+        }
+        const copied = copy1(this.buf.subarray(this.r, this.w), p, 0);
+        this.r += copied;
+        return copied;
+    }
+    async readFull(p) {
+        let bytesRead = 0;
+        while(bytesRead < p.length){
+            try {
+                const rr = await this.read(p.subarray(bytesRead));
+                if (rr === null) {
+                    if (bytesRead === 0) {
+                        return null;
+                    } else {
+                        throw new PartialReadError();
+                    }
+                }
+                bytesRead += rr;
+            } catch (err) {
+                if (err instanceof PartialReadError) {
+                    err.partial = p.subarray(0, bytesRead);
+                } else if (err instanceof Error) {
+                    const e = new PartialReadError();
+                    e.partial = p.subarray(0, bytesRead);
+                    e.stack = err.stack;
+                    e.message = err.message;
+                    e.cause = err.cause;
+                    throw err;
+                }
+                throw err;
+            }
+        }
+        return p;
+    }
+    async readByte() {
+        while(this.r === this.w){
+            if (this.eof) return null;
+            await this._fill();
+        }
+        const c = this.buf[this.r];
+        this.r++;
+        return c;
+    }
+    async readString(delim) {
+        if (delim.length !== 1) {
+            throw new Error("Delimiter should be a single character");
+        }
+        const buffer = await this.readSlice(delim.charCodeAt(0));
+        if (buffer === null) return null;
+        return new TextDecoder().decode(buffer);
+    }
+    async readLine() {
+        let line = null;
+        try {
+            line = await this.readSlice(LF);
+        } catch (err) {
+            if (err instanceof Deno.errors.BadResource) {
+                throw err;
+            }
+            let partial;
+            if (err instanceof PartialReadError) {
+                partial = err.partial;
+                assert1(partial instanceof Uint8Array, "bufio: caught error from `readSlice()` without `partial` property");
+            }
+            if (!(err instanceof BufferFullError)) {
+                throw err;
+            }
+            if (!this.eof && partial && partial.byteLength > 0 && partial[partial.byteLength - 1] === CR) {
+                assert1(this.r > 0, "bufio: tried to rewind past start of buffer");
+                this.r--;
+                partial = partial.subarray(0, partial.byteLength - 1);
+            }
+            if (partial) {
+                return {
+                    line: partial,
+                    more: !this.eof
+                };
+            }
+        }
+        if (line === null) {
+            return null;
+        }
+        if (line.byteLength === 0) {
+            return {
+                line,
+                more: false
+            };
+        }
+        if (line[line.byteLength - 1] == LF) {
+            let drop = 1;
+            if (line.byteLength > 1 && line[line.byteLength - 2] === CR) {
+                drop = 2;
+            }
+            line = line.subarray(0, line.byteLength - drop);
+        }
+        return {
+            line,
+            more: false
+        };
+    }
+    async readSlice(delim) {
+        let s = 0;
+        let slice;
+        while(true){
+            let i = this.buf.subarray(this.r + s, this.w).indexOf(delim);
+            if (i >= 0) {
+                i += s;
+                slice = this.buf.subarray(this.r, this.r + i + 1);
+                this.r += i + 1;
+                break;
+            }
+            if (this.eof) {
+                if (this.r === this.w) {
+                    return null;
+                }
+                slice = this.buf.subarray(this.r, this.w);
+                this.r = this.w;
+                break;
+            }
+            if (this.buffered() >= this.buf.byteLength) {
+                this.r = this.w;
+                const oldbuf = this.buf;
+                const newbuf = this.buf.slice(0);
+                this.buf = newbuf;
+                throw new BufferFullError(oldbuf);
+            }
+            s = this.w - this.r;
+            try {
+                await this._fill();
+            } catch (err) {
+                if (err instanceof PartialReadError) {
+                    err.partial = slice;
+                } else if (err instanceof Error) {
+                    const e = new PartialReadError();
+                    e.partial = slice;
+                    e.stack = err.stack;
+                    e.message = err.message;
+                    e.cause = err.cause;
+                    throw err;
+                }
+                throw err;
+            }
+        }
+        return slice;
+    }
+    async peek(n) {
+        if (n < 0) {
+            throw Error("negative count");
+        }
+        let avail = this.w - this.r;
+        while(avail < n && avail < this.buf.byteLength && !this.eof){
+            try {
+                await this._fill();
+            } catch (err) {
+                if (err instanceof PartialReadError) {
+                    err.partial = this.buf.subarray(this.r, this.w);
+                } else if (err instanceof Error) {
+                    const e = new PartialReadError();
+                    e.partial = this.buf.subarray(this.r, this.w);
+                    e.stack = err.stack;
+                    e.message = err.message;
+                    e.cause = err.cause;
+                    throw err;
+                }
+                throw err;
+            }
+            avail = this.w - this.r;
+        }
+        if (avail === 0 && this.eof) {
+            return null;
+        } else if (avail < n && this.eof) {
+            return this.buf.subarray(this.r, this.r + avail);
+        } else if (avail < n) {
+            throw new BufferFullError(this.buf.subarray(this.r, this.w));
+        }
+        return this.buf.subarray(this.r, this.r + n);
+    }
+}
+class AbstractBufBase {
+    buf;
+    usedBufferBytes = 0;
+    err = null;
+    size() {
+        return this.buf.byteLength;
+    }
+    available() {
+        return this.buf.byteLength - this.usedBufferBytes;
+    }
+    buffered() {
+        return this.usedBufferBytes;
+    }
+}
+class BufWriter extends AbstractBufBase {
+    writer;
+    static create(writer, size = 4096) {
+        return writer instanceof BufWriter ? writer : new BufWriter(writer, size);
+    }
+    constructor(writer1, size1 = 4096){
+        super();
+        this.writer = writer1;
+        if (size1 <= 0) {
+            size1 = DEFAULT_BUF_SIZE;
+        }
+        this.buf = new Uint8Array(size1);
+    }
+    reset(w) {
+        this.err = null;
+        this.usedBufferBytes = 0;
+        this.writer = w;
+    }
+    async flush() {
+        if (this.err !== null) throw this.err;
+        if (this.usedBufferBytes === 0) return;
+        try {
+            await writeAll(this.writer, this.buf.subarray(0, this.usedBufferBytes));
+        } catch (e) {
+            if (e instanceof Error) {
+                this.err = e;
+            }
+            throw e;
+        }
+        this.buf = new Uint8Array(this.buf.length);
+        this.usedBufferBytes = 0;
+    }
+    async write(data) {
+        if (this.err !== null) throw this.err;
+        if (data.length === 0) return 0;
+        let totalBytesWritten = 0;
+        let numBytesWritten = 0;
+        while(data.byteLength > this.available()){
+            if (this.buffered() === 0) {
+                try {
+                    numBytesWritten = await this.writer.write(data);
+                } catch (e) {
+                    if (e instanceof Error) {
+                        this.err = e;
+                    }
+                    throw e;
+                }
+            } else {
+                numBytesWritten = copy1(data, this.buf, this.usedBufferBytes);
+                this.usedBufferBytes += numBytesWritten;
+                await this.flush();
+            }
+            totalBytesWritten += numBytesWritten;
+            data = data.subarray(numBytesWritten);
+        }
+        numBytesWritten = copy1(data, this.buf, this.usedBufferBytes);
+        this.usedBufferBytes += numBytesWritten;
+        totalBytesWritten += numBytesWritten;
+        return totalBytesWritten;
+    }
+}
+class BufWriterSync extends AbstractBufBase {
+    writer;
+    static create(writer, size = 4096) {
+        return writer instanceof BufWriterSync ? writer : new BufWriterSync(writer, size);
+    }
+    constructor(writer2, size2 = 4096){
+        super();
+        this.writer = writer2;
+        if (size2 <= 0) {
+            size2 = DEFAULT_BUF_SIZE;
+        }
+        this.buf = new Uint8Array(size2);
+    }
+    reset(w) {
+        this.err = null;
+        this.usedBufferBytes = 0;
+        this.writer = w;
+    }
+    flush() {
+        if (this.err !== null) throw this.err;
+        if (this.usedBufferBytes === 0) return;
+        try {
+            writeAllSync(this.writer, this.buf.subarray(0, this.usedBufferBytes));
+        } catch (e) {
+            if (e instanceof Error) {
+                this.err = e;
+            }
+            throw e;
+        }
+        this.buf = new Uint8Array(this.buf.length);
+        this.usedBufferBytes = 0;
+    }
+    writeSync(data) {
+        if (this.err !== null) throw this.err;
+        if (data.length === 0) return 0;
+        let totalBytesWritten = 0;
+        let numBytesWritten = 0;
+        while(data.byteLength > this.available()){
+            if (this.buffered() === 0) {
+                try {
+                    numBytesWritten = this.writer.writeSync(data);
+                } catch (e) {
+                    if (e instanceof Error) {
+                        this.err = e;
+                    }
+                    throw e;
+                }
+            } else {
+                numBytesWritten = copy1(data, this.buf, this.usedBufferBytes);
+                this.usedBufferBytes += numBytesWritten;
+                this.flush();
+            }
+            totalBytesWritten += numBytesWritten;
+            data = data.subarray(numBytesWritten);
+        }
+        numBytesWritten = copy1(data, this.buf, this.usedBufferBytes);
+        this.usedBufferBytes += numBytesWritten;
+        totalBytesWritten += numBytesWritten;
+        return totalBytesWritten;
+    }
+}
+function createLPS(pat) {
+    const lps = new Uint8Array(pat.length);
+    lps[0] = 0;
+    let prefixEnd = 0;
+    let i = 1;
+    while(i < lps.length){
+        if (pat[i] == pat[prefixEnd]) {
+            prefixEnd++;
+            lps[i] = prefixEnd;
+            i++;
+        } else if (prefixEnd === 0) {
+            lps[i] = 0;
+            i++;
+        } else {
+            prefixEnd = lps[prefixEnd - 1];
+        }
+    }
+    return lps;
+}
+async function* readDelim(reader, delim) {
+    const delimLen = delim.length;
+    const delimLPS = createLPS(delim);
+    const chunks = new BytesList();
+    const bufSize = Math.max(1024, delimLen + 1);
+    let inspectIndex = 0;
+    let matchIndex = 0;
+    while(true){
+        const inspectArr = new Uint8Array(bufSize);
+        const result = await reader.read(inspectArr);
+        if (result === null) {
+            yield chunks.concat();
+            return;
+        } else if (result < 0) {
+            return;
+        }
+        chunks.add(inspectArr, 0, result);
+        let localIndex = 0;
+        while(inspectIndex < chunks.size()){
+            if (inspectArr[localIndex] === delim[matchIndex]) {
+                inspectIndex++;
+                localIndex++;
+                matchIndex++;
+                if (matchIndex === delimLen) {
+                    const matchEnd = inspectIndex - delimLen;
+                    const readyBytes = chunks.slice(0, matchEnd);
+                    yield readyBytes;
+                    chunks.shift(inspectIndex);
+                    inspectIndex = 0;
+                    matchIndex = 0;
+                }
+            } else {
+                if (matchIndex === 0) {
+                    inspectIndex++;
+                    localIndex++;
+                } else {
+                    matchIndex = delimLPS[matchIndex - 1];
+                }
+            }
+        }
+    }
+}
+async function* readStringDelim(reader, delim, decoderOpts) {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder(decoderOpts?.encoding, decoderOpts);
+    for await (const chunk of readDelim(reader, encoder.encode(delim))){
+        yield decoder.decode(chunk);
+    }
+}
+async function* readLines(reader, decoderOpts) {
+    const bufReader = new BufReader(reader);
+    let chunks = [];
+    const decoder = new TextDecoder(decoderOpts?.encoding, decoderOpts);
+    while(true){
+        const res = await bufReader.readLine();
+        if (!res) {
+            if (chunks.length > 0) {
+                yield decoder.decode(concat(...chunks));
+            }
+            break;
+        }
+        chunks.push(res.line);
+        if (!res.more) {
+            yield decoder.decode(concat(...chunks));
+            chunks = [];
+        }
+    }
+}
 const DEFAULT_BUFFER_SIZE1 = 32 * 1024;
 async function copyN(r, dest, size) {
     let bytesRead = 0;
@@ -10975,7 +10517,7 @@ async function copyN(r, dest, size) {
             while(n < nread){
                 n += await dest.write(buf.slice(n, nread));
             }
-            assert(n === nread, "could not write");
+            assert1(n === nread, "could not write");
         }
         if (result === null) {
             break;
@@ -11228,8 +10770,9 @@ class StringWriter {
         return this.cache;
     }
 }
-const mod7 = function() {
+const mod6 = function() {
     return {
+        Buffer,
         BufferFullError,
         PartialReadError,
         BufReader,
@@ -11246,8 +10789,7 @@ const mod7 = function() {
         writeAllSync,
         iter,
         iterSync,
-        copy: copy1,
-        Buffer,
+        copy: copy2,
         copyN,
         readShort,
         readInt,
@@ -11272,13 +10814,532 @@ function validate(id) {
 function generate() {
     return crypto.randomUUID();
 }
-const mod8 = function() {
+const mod7 = function() {
     return {
         validate: validate,
         generate: generate
     };
 }();
+var LogLevels;
+(function(LogLevels) {
+    LogLevels[LogLevels["NOTSET"] = 0] = "NOTSET";
+    LogLevels[LogLevels["DEBUG"] = 10] = "DEBUG";
+    LogLevels[LogLevels["INFO"] = 20] = "INFO";
+    LogLevels[LogLevels["WARNING"] = 30] = "WARNING";
+    LogLevels[LogLevels["ERROR"] = 40] = "ERROR";
+    LogLevels[LogLevels["CRITICAL"] = 50] = "CRITICAL";
+})(LogLevels || (LogLevels = {
+}));
+const byLevel = {
+    [String(LogLevels.NOTSET)]: "NOTSET",
+    [String(LogLevels.DEBUG)]: "DEBUG",
+    [String(LogLevels.INFO)]: "INFO",
+    [String(LogLevels.WARNING)]: "WARNING",
+    [String(LogLevels.ERROR)]: "ERROR",
+    [String(LogLevels.CRITICAL)]: "CRITICAL"
+};
+function getLevelByName(name) {
+    switch(name){
+        case "NOTSET":
+            return LogLevels.NOTSET;
+        case "DEBUG":
+            return LogLevels.DEBUG;
+        case "INFO":
+            return LogLevels.INFO;
+        case "WARNING":
+            return LogLevels.WARNING;
+        case "ERROR":
+            return LogLevels.ERROR;
+        case "CRITICAL":
+            return LogLevels.CRITICAL;
+        default:
+            throw new Error(`no log level found for "${name}"`);
+    }
+}
+function getLevelName(level) {
+    const levelName = byLevel[level];
+    if (levelName) {
+        return levelName;
+    }
+    throw new Error(`no level name found for level: ${level}`);
+}
+class LogRecord {
+    msg;
+    #args;
+    #datetime;
+    level;
+    levelName;
+    loggerName;
+    constructor(options){
+        this.msg = options.msg;
+        this.#args = [
+            ...options.args
+        ];
+        this.level = options.level;
+        this.loggerName = options.loggerName;
+        this.#datetime = new Date();
+        this.levelName = getLevelName(options.level);
+    }
+    get args() {
+        return [
+            ...this.#args
+        ];
+    }
+    get datetime() {
+        return new Date(this.#datetime.getTime());
+    }
+}
+class Logger {
+    #level;
+    #handlers;
+    #loggerName;
+    constructor(loggerName1, levelName1, options1 = {
+    }){
+        this.#loggerName = loggerName1;
+        this.#level = getLevelByName(levelName1);
+        this.#handlers = options1.handlers || [];
+    }
+    get level() {
+        return this.#level;
+    }
+    set level(level) {
+        this.#level = level;
+    }
+    get levelName() {
+        return getLevelName(this.#level);
+    }
+    set levelName(levelName) {
+        this.#level = getLevelByName(levelName);
+    }
+    get loggerName() {
+        return this.#loggerName;
+    }
+    set handlers(hndls) {
+        this.#handlers = hndls;
+    }
+    get handlers() {
+        return this.#handlers;
+    }
+    _log(level, msg, ...args) {
+        if (this.level > level) {
+            return msg instanceof Function ? undefined : msg;
+        }
+        let fnResult;
+        let logMessage;
+        if (msg instanceof Function) {
+            fnResult = msg();
+            logMessage = this.asString(fnResult);
+        } else {
+            logMessage = this.asString(msg);
+        }
+        const record = new LogRecord({
+            msg: logMessage,
+            args: args,
+            level: level,
+            loggerName: this.loggerName
+        });
+        this.#handlers.forEach((handler)=>{
+            handler.handle(record);
+        });
+        return msg instanceof Function ? fnResult : msg;
+    }
+    asString(data) {
+        if (typeof data === "string") {
+            return data;
+        } else if (data === null || typeof data === "number" || typeof data === "bigint" || typeof data === "boolean" || typeof data === "undefined" || typeof data === "symbol") {
+            return String(data);
+        } else if (data instanceof Error) {
+            return data.stack;
+        } else if (typeof data === "object") {
+            return JSON.stringify(data);
+        }
+        return "undefined";
+    }
+    debug(msg, ...args) {
+        return this._log(LogLevels.DEBUG, msg, ...args);
+    }
+    info(msg, ...args) {
+        return this._log(LogLevels.INFO, msg, ...args);
+    }
+    warning(msg, ...args) {
+        return this._log(LogLevels.WARNING, msg, ...args);
+    }
+    error(msg, ...args) {
+        return this._log(LogLevels.ERROR, msg, ...args);
+    }
+    critical(msg, ...args) {
+        return this._log(LogLevels.CRITICAL, msg, ...args);
+    }
+}
+const DEFAULT_FORMATTER = "{levelName} {msg}";
+class BaseHandler {
+    level;
+    levelName;
+    formatter;
+    constructor(levelName2, options2 = {
+    }){
+        this.level = getLevelByName(levelName2);
+        this.levelName = levelName2;
+        this.formatter = options2.formatter || DEFAULT_FORMATTER;
+    }
+    handle(logRecord) {
+        if (this.level > logRecord.level) return;
+        const msg = this.format(logRecord);
+        return this.log(msg);
+    }
+    format(logRecord) {
+        if (this.formatter instanceof Function) {
+            return this.formatter(logRecord);
+        }
+        return this.formatter.replace(/{(\S+)}/g, (match, p1)=>{
+            const value = logRecord[p1];
+            if (value == null) {
+                return match;
+            }
+            return String(value);
+        });
+    }
+    log(_msg) {
+    }
+    async setup() {
+    }
+    async destroy() {
+    }
+}
+class ConsoleHandler extends BaseHandler {
+    format(logRecord) {
+        let msg = super.format(logRecord);
+        switch(logRecord.level){
+            case LogLevels.INFO:
+                msg = blue(msg);
+                break;
+            case LogLevels.WARNING:
+                msg = yellow(msg);
+                break;
+            case LogLevels.ERROR:
+                msg = red1(msg);
+                break;
+            case LogLevels.CRITICAL:
+                msg = bold1(red1(msg));
+                break;
+            default: break;
+        }
+        return msg;
+    }
+    log(msg) {
+        console.log(msg);
+    }
+}
+class WriterHandler extends BaseHandler {
+    _writer;
+    #encoder = new TextEncoder();
+}
+class FileHandler extends WriterHandler {
+    _file;
+    _buf;
+    _filename;
+    _mode;
+    _openOptions;
+    _encoder = new TextEncoder();
+     #unloadCallback() {
+        this.destroy();
+    }
+    constructor(levelName3, options3){
+        super(levelName3, options3);
+        this._filename = options3.filename;
+        this._mode = options3.mode ? options3.mode : "a";
+        this._openOptions = {
+            createNew: this._mode === "x",
+            create: this._mode !== "x",
+            append: this._mode === "a",
+            truncate: this._mode !== "a",
+            write: true
+        };
+    }
+    async setup() {
+        this._file = await Deno.open(this._filename, this._openOptions);
+        this._writer = this._file;
+        this._buf = new BufWriterSync(this._file);
+        addEventListener("unload", this.#unloadCallback.bind(this));
+    }
+    handle(logRecord) {
+        super.handle(logRecord);
+        if (logRecord.level > LogLevels.ERROR) {
+            this.flush();
+        }
+    }
+    log(msg) {
+        this._buf.writeSync(this._encoder.encode(msg + "\n"));
+    }
+    flush() {
+        if (this._buf?.buffered() > 0) {
+            this._buf.flush();
+        }
+    }
+    destroy() {
+        this.flush();
+        this._file?.close();
+        this._file = undefined;
+        removeEventListener("unload", this.#unloadCallback);
+        return Promise.resolve();
+    }
+}
+class RotatingFileHandler extends FileHandler {
+    #maxBytes;
+    #maxBackupCount;
+    #currentFileSize = 0;
+    constructor(levelName4, options4){
+        super(levelName4, options4);
+        this.#maxBytes = options4.maxBytes;
+        this.#maxBackupCount = options4.maxBackupCount;
+    }
+    async setup() {
+        if (this.#maxBytes < 1) {
+            this.destroy();
+            throw new Error("maxBytes cannot be less than 1");
+        }
+        if (this.#maxBackupCount < 1) {
+            this.destroy();
+            throw new Error("maxBackupCount cannot be less than 1");
+        }
+        await super.setup();
+        if (this._mode === "w") {
+            for(let i = 1; i <= this.#maxBackupCount; i++){
+                if (await exists(this._filename + "." + i)) {
+                    await Deno.remove(this._filename + "." + i);
+                }
+            }
+        } else if (this._mode === "x") {
+            for(let i = 1; i <= this.#maxBackupCount; i++){
+                if (await exists(this._filename + "." + i)) {
+                    this.destroy();
+                    throw new Deno.errors.AlreadyExists("Backup log file " + this._filename + "." + i + " already exists");
+                }
+            }
+        } else {
+            this.#currentFileSize = (await Deno.stat(this._filename)).size;
+        }
+    }
+    log(msg) {
+        const msgByteLength = this._encoder.encode(msg).byteLength + 1;
+        if (this.#currentFileSize + msgByteLength > this.#maxBytes) {
+            this.rotateLogFiles();
+            this.#currentFileSize = 0;
+        }
+        this._buf.writeSync(this._encoder.encode(msg + "\n"));
+        this.#currentFileSize += msgByteLength;
+    }
+    rotateLogFiles() {
+        this._buf.flush();
+        Deno.close(this._file.rid);
+        for(let i = this.#maxBackupCount - 1; i >= 0; i--){
+            const source = this._filename + (i === 0 ? "" : "." + i);
+            const dest = this._filename + "." + (i + 1);
+            if (existsSync(source)) {
+                Deno.renameSync(source, dest);
+            }
+        }
+        this._file = Deno.openSync(this._filename, this._openOptions);
+        this._writer = this._file;
+        this._buf = new BufWriterSync(this._file);
+    }
+}
+class LoggerConfig {
+    level;
+    handlers;
+}
+const DEFAULT_LEVEL = "INFO";
+const DEFAULT_CONFIG = {
+    handlers: {
+        default: new ConsoleHandler(DEFAULT_LEVEL)
+    },
+    loggers: {
+        default: {
+            level: DEFAULT_LEVEL,
+            handlers: [
+                "default"
+            ]
+        }
+    }
+};
+const state1 = {
+    handlers: new Map(),
+    loggers: new Map(),
+    config: DEFAULT_CONFIG
+};
+const handlers1 = {
+    BaseHandler,
+    ConsoleHandler,
+    WriterHandler,
+    FileHandler,
+    RotatingFileHandler
+};
+function getLogger(name) {
+    if (!name) {
+        const d = state1.loggers.get("default");
+        assert1(d != null, `"default" logger must be set for getting logger without name`);
+        return d;
+    }
+    const result = state1.loggers.get(name);
+    if (!result) {
+        const logger = new Logger(name, "NOTSET", {
+            handlers: []
+        });
+        state1.loggers.set(name, logger);
+        return logger;
+    }
+    return result;
+}
+function debug(msg, ...args) {
+    if (msg instanceof Function) {
+        return getLogger("default").debug(msg, ...args);
+    }
+    return getLogger("default").debug(msg, ...args);
+}
+function info(msg, ...args) {
+    if (msg instanceof Function) {
+        return getLogger("default").info(msg, ...args);
+    }
+    return getLogger("default").info(msg, ...args);
+}
+function warning(msg, ...args) {
+    if (msg instanceof Function) {
+        return getLogger("default").warning(msg, ...args);
+    }
+    return getLogger("default").warning(msg, ...args);
+}
+function error(msg, ...args) {
+    if (msg instanceof Function) {
+        return getLogger("default").error(msg, ...args);
+    }
+    return getLogger("default").error(msg, ...args);
+}
+function critical(msg, ...args) {
+    if (msg instanceof Function) {
+        return getLogger("default").critical(msg, ...args);
+    }
+    return getLogger("default").critical(msg, ...args);
+}
+async function setup(config) {
+    state1.config = {
+        handlers: {
+            ...DEFAULT_CONFIG.handlers,
+            ...config.handlers
+        },
+        loggers: {
+            ...DEFAULT_CONFIG.loggers,
+            ...config.loggers
+        }
+    };
+    state1.handlers.forEach((handler)=>{
+        handler.destroy();
+    });
+    state1.handlers.clear();
+    const handlers = state1.config.handlers || {
+    };
+    for(const handlerName in handlers){
+        const handler = handlers[handlerName];
+        await handler.setup();
+        state1.handlers.set(handlerName, handler);
+    }
+    state1.loggers.clear();
+    const loggers = state1.config.loggers || {
+    };
+    for(const loggerName in loggers){
+        const loggerConfig = loggers[loggerName];
+        const handlerNames = loggerConfig.handlers || [];
+        const handlers = [];
+        handlerNames.forEach((handlerName)=>{
+            const handler = state1.handlers.get(handlerName);
+            if (handler) {
+                handlers.push(handler);
+            }
+        });
+        const levelName = loggerConfig.level || DEFAULT_LEVEL;
+        const logger = new Logger(loggerName, levelName, {
+            handlers: handlers
+        });
+        state1.loggers.set(loggerName, logger);
+    }
+}
+await setup(DEFAULT_CONFIG);
+const mod8 = await async function() {
+    return {
+        LogLevels: LogLevels,
+        Logger: Logger,
+        LoggerConfig: LoggerConfig,
+        handlers: handlers1,
+        getLogger: getLogger,
+        debug: debug,
+        info: info,
+        warning: warning,
+        error: error,
+        critical: critical,
+        setup: setup
+    };
+}();
+function logAndFlush(level, msg) {
+    const logger = mod8.getLogger();
+    switch(level){
+        case mod8.LogLevels.DEBUG:
+            {
+                logger.debug(msg);
+                break;
+            }
+        case mod8.LogLevels.ERROR:
+            {
+                logger.error(msg);
+                break;
+            }
+        case mod8.LogLevels.INFO:
+            {
+                logger.info(msg);
+                break;
+            }
+        case mod8.LogLevels.WARNING:
+            {
+                logger.warning(msg);
+                break;
+            }
+        default:
+            throw new Error(`Invalid level, value: [${level}]`);
+    }
+    for (const handler of logger.handlers){
+        let hasFlush = false;
+        let proto = handler;
+        do {
+            const props = Object.getOwnPropertyNames(proto);
+            if (props.includes("flush")) {
+                hasFlush = true;
+                break;
+            }
+        }while (null != (proto = Object.getPrototypeOf(proto)))
+        if (hasFlush) {
+            const obj = handler;
+            try {
+                obj.flush();
+            } catch (e) {
+                console.error(e.stack);
+                logger.critical(e.stack);
+            }
+        }
+    }
+}
 const __default5 = {
+    debug (msg) {
+        logAndFlush(mod8.LogLevels.DEBUG, msg);
+    },
+    error (msg) {
+        logAndFlush(mod8.LogLevels.ERROR, msg);
+    },
+    info (msg) {
+        logAndFlush(mod8.LogLevels.INFO, msg);
+    },
+    warning (msg) {
+        logAndFlush(mod8.LogLevels.WARNING, msg);
+    }
+};
+const __default6 = {
     copyOptions: function(options) {
         const copy = {
         };
@@ -11312,35 +11373,35 @@ const __default5 = {
 };
 let currentElement, currentElementName;
 function validateOptions(userOptions) {
-    const options = __default5.copyOptions(userOptions);
-    __default5.ensureFlagExists("ignoreDeclaration", options);
-    __default5.ensureFlagExists("ignoreInstruction", options);
-    __default5.ensureFlagExists("ignoreAttributes", options);
-    __default5.ensureFlagExists("ignoreText", options);
-    __default5.ensureFlagExists("ignoreComment", options);
-    __default5.ensureFlagExists("ignoreCdata", options);
-    __default5.ensureFlagExists("ignoreDoctype", options);
-    __default5.ensureFlagExists("compact", options);
-    __default5.ensureFlagExists("indentText", options);
-    __default5.ensureFlagExists("indentCdata", options);
-    __default5.ensureFlagExists("indentAttributes", options);
-    __default5.ensureFlagExists("indentInstruction", options);
-    __default5.ensureFlagExists("fullTagEmptyElement", options);
-    __default5.ensureFlagExists("noQuotesForNativeAttributes", options);
-    __default5.ensureSpacesExists(options);
+    const options = __default6.copyOptions(userOptions);
+    __default6.ensureFlagExists("ignoreDeclaration", options);
+    __default6.ensureFlagExists("ignoreInstruction", options);
+    __default6.ensureFlagExists("ignoreAttributes", options);
+    __default6.ensureFlagExists("ignoreText", options);
+    __default6.ensureFlagExists("ignoreComment", options);
+    __default6.ensureFlagExists("ignoreCdata", options);
+    __default6.ensureFlagExists("ignoreDoctype", options);
+    __default6.ensureFlagExists("compact", options);
+    __default6.ensureFlagExists("indentText", options);
+    __default6.ensureFlagExists("indentCdata", options);
+    __default6.ensureFlagExists("indentAttributes", options);
+    __default6.ensureFlagExists("indentInstruction", options);
+    __default6.ensureFlagExists("fullTagEmptyElement", options);
+    __default6.ensureFlagExists("noQuotesForNativeAttributes", options);
+    __default6.ensureSpacesExists(options);
     if (typeof options.spaces === "number") {
         options.spaces = Array(options.spaces + 1).join(" ");
     }
-    __default5.ensureKeyExists("declaration", options);
-    __default5.ensureKeyExists("instruction", options);
-    __default5.ensureKeyExists("attributes", options);
-    __default5.ensureKeyExists("text", options);
-    __default5.ensureKeyExists("comment", options);
-    __default5.ensureKeyExists("cdata", options);
-    __default5.ensureKeyExists("doctype", options);
-    __default5.ensureKeyExists("type", options);
-    __default5.ensureKeyExists("name", options);
-    __default5.ensureKeyExists("elements", options);
+    __default6.ensureKeyExists("declaration", options);
+    __default6.ensureKeyExists("instruction", options);
+    __default6.ensureKeyExists("attributes", options);
+    __default6.ensureKeyExists("text", options);
+    __default6.ensureKeyExists("comment", options);
+    __default6.ensureKeyExists("cdata", options);
+    __default6.ensureKeyExists("doctype", options);
+    __default6.ensureKeyExists("type", options);
+    __default6.ensureKeyExists("name", options);
+    __default6.ensureKeyExists("elements", options);
     return options;
 }
 function writeIndentation(options, depth, firstLine) {
@@ -11595,7 +11656,7 @@ function writeElementsCompact(element, options, depth, firstLine) {
     }
     return xml.join("");
 }
-function __default6(js, options) {
+function __default7(js, options) {
     options = validateOptions(options);
     const xml = [];
     currentElement = js;
@@ -11738,7 +11799,7 @@ function html(strings, ...values) {
     html += strings[l];
     return html;
 }
-const __default7 = (dirname, entries)=>{
+const __default8 = (dirname, entries)=>{
     return html`
     <!DOCTYPE html>
     <html lang="en">
@@ -11802,7 +11863,7 @@ const __default7 = (dirname, entries)=>{
     </html>
   `;
 };
-const __default8 = async (logger, ev)=>{
+const __default9 = async (logger, ev)=>{
     const path = new URL(ev.request.url).pathname;
     const msg = `Bad Request, method: [${ev.request.method}], path: [${path}]`;
     logger.error(msg);
@@ -11819,7 +11880,7 @@ const __default8 = async (logger, ev)=>{
     } catch (_) {
     }
 };
-const __default9 = async (logger, ev)=>{
+const __default10 = async (logger, ev)=>{
     const path = new URL(ev.request.url).pathname;
     const msg = `Not Found, method: [${ev.request.method}], path: [${path}]`;
     logger.error(msg);
@@ -11836,7 +11897,7 @@ const __default9 = async (logger, ev)=>{
     } catch (_) {
     }
 };
-const __default10 = async (logger, ev, e)=>{
+const __default11 = async (logger, ev, e)=>{
     const err = e?.stack || String(e);
     const msg = `Server Error, method: [${ev.request.method}], url: [${ev.request.url}], error: \n${err}`;
     logger.error(msg);
@@ -12057,7 +12118,7 @@ function extname6(path) {
     }
     return path.slice(startDot, end);
 }
-const __default11 = (url)=>{
+const __default12 = (url)=>{
     let normalizedUrl = url;
     if (!normalizedUrl.startsWith("/")) {
         normalizedUrl = `/${normalizedUrl}`;
@@ -12076,7 +12137,7 @@ const __default11 = (url)=>{
     const startOfParams = normalizedUrl.indexOf("?");
     return startOfParams > -1 ? normalizedUrl.slice(0, startOfParams) : normalizedUrl;
 };
-const __default12 = (reader)=>{
+const __default13 = (reader)=>{
     return new ReadableStream({
         async pull (controller) {
             const chunk = new Uint8Array(16640);
@@ -12148,7 +12209,7 @@ async function serveFile(ev, filePath) {
     if (contentType) {
         headers.set("content-type", contentType);
     }
-    const stream = __default12(file);
+    const stream = __default13(file);
     await ev.respondWith(new Response(stream, {
         status: 200,
         headers
@@ -12189,7 +12250,7 @@ async function serveDir(conf, ev, dirPath) {
         return a.name.toLowerCase() > b.name.toLowerCase() ? 1 : -1;
     });
     const formattedDirUrl = `${dirUrl.replace(/\/$/, "")}/`;
-    const page = encoder.encode(__default7(formattedDirUrl, listEntry));
+    const page = encoder.encode(__default8(formattedDirUrl, listEntry));
     const headers = new Headers();
     headers.set("content-type", "text/html");
     await ev.respondWith(new Response(page, {
@@ -12197,13 +12258,13 @@ async function serveDir(conf, ev, dirPath) {
         headers
     }));
 }
-const __default13 = async (req)=>{
+const __default14 = async (req)=>{
     let fsPath = "";
     const logger = req.server.logger;
     const conf = req.server.conf.files;
     try {
         const relativeUrl = req.path.substring(conf.path.length);
-        const normalizedUrl = __default11(relativeUrl);
+        const normalizedUrl = __default12(relativeUrl);
         fsPath = join7(conf.rootDirectory, normalizedUrl);
         const fileInfo = await Deno.stat(fsPath);
         if (fileInfo.isDirectory) {
@@ -12218,15 +12279,15 @@ const __default13 = async (req)=>{
     } catch (e) {
         logger.error(`Error serving file, path: [${fsPath}]`);
         if (e instanceof URIError) {
-            await __default8(logger, req.ev);
-        } else if (e instanceof Deno.errors.NotFound) {
             await __default9(logger, req.ev);
+        } else if (e instanceof Deno.errors.NotFound) {
+            await __default10(logger, req.ev);
         } else {
-            await __default10(logger, req.ev, e);
+            await __default11(logger, req.ev, e);
         }
     }
 };
-const __default14 = async (req)=>{
+const __default15 = async (req)=>{
     const logger = req.server.logger;
     const conf = req.server.conf.http;
     try {
@@ -12234,10 +12295,10 @@ const __default14 = async (req)=>{
         const resp = await conf.handler(req);
         await req.respondWith(resp);
     } catch (e) {
-        await __default10(logger, req.ev, e);
+        await __default11(logger, req.ev, e);
     }
 };
-const __default15 = (closer)=>{
+const __default16 = (closer)=>{
     if (!closer) {
         return;
     }
@@ -12295,28 +12356,28 @@ async function handleSockNoThrow(logger, conf, sock, id) {
         logger.error(String(e));
     }
 }
-const __default16 = async (req)=>{
+const __default17 = async (req)=>{
     const logger = req.server.logger;
     const conf = req.server.conf.websocket;
     const conn = req.conn;
     let sock = null;
     try {
         if ("websocket" != req.headers.get("upgrade")) {
-            await __default8(logger, req.ev);
+            await __default9(logger, req.ev);
             return;
         }
         const upg = Deno.upgradeWebSocket(req.ev.request);
         await req.ev.respondWith(upg.response);
         sock = upg.socket;
     } catch (e) {
-        await __default10(logger, req.ev, e);
+        await __default11(logger, req.ev, e);
         return;
     }
     if (null != sock) {
         conn.trackWebSocket(sock);
         logger.info(`WebSocket connection opened, id: [${conn.httpConn.rid}]`);
         await handleSockNoThrow(logger, conf, sock, conn.httpConn.rid);
-        __default15(sock);
+        __default16(sock);
         logger.info(`WebSocket connection closed, id: [${conn.httpConn.rid}]`);
     }
 };
@@ -12356,9 +12417,9 @@ class SimpleConn {
         this.websocket = websocket;
     }
     close() {
-        __default15(this.websocket);
-        __default15(this.httpConn);
-        __default15(this.tcpConn);
+        __default16(this.websocket);
+        __default16(this.httpConn);
+        __default16(this.tcpConn);
     }
     async ensureDone() {
         if (null != this.op) {
@@ -12398,9 +12459,9 @@ class TrackingListener {
         }
         this.closed = true;
         for (const conn of this.activeConns){
-            __default15(conn);
+            __default16(conn);
         }
-        __default15(this.denoListener);
+        __default16(this.denoListener);
     }
     async ensureDone() {
         const ops = [];
@@ -12432,7 +12493,7 @@ class TrackingListener {
         };
     }
 }
-const __default17 = async (logger, ev, location)=>{
+const __default18 = async (logger, ev, location)=>{
     const path = new URL(ev.request.url).pathname;
     logger.info(`Redirecting from: [${path}] to [${location}]`);
     const headers = new Headers();
@@ -12516,7 +12577,7 @@ class SimpleServer1 {
                 }
                 const req = new SimpleRequest1(this, conn, ev);
                 if (this.conf.websocket && req.path === this.conf.websocket.path) {
-                    await __default16(req);
+                    await __default17(req);
                     break;
                 }
                 await this._handleReq(req);
@@ -12528,21 +12589,21 @@ class SimpleServer1 {
             }
         }
         this.listener.untrackConn(conn);
-        __default15(conn);
+        __default16(conn);
     }
     async _handleReq(req) {
         try {
             if (this.conf.http && req.path.startsWith(this.conf.http.path)) {
-                await __default14(req);
+                await __default15(req);
             } else if (this.conf.files && req.path.startsWith(this.conf.files.path)) {
-                await __default13(req);
+                await __default14(req);
             } else if ("/" === req.path && this.conf.rootRedirectLocation) {
-                await __default17(this.logger, req.ev, this.conf.rootRedirectLocation);
+                await __default18(this.logger, req.ev, this.conf.rootRedirectLocation);
             } else {
-                await __default9(this.logger, req.ev);
+                await __default10(this.logger, req.ev);
             }
         } catch (e) {
-            await __default10(this.logger, req.ev, e);
+            await __default11(this.logger, req.ev, e);
         }
     }
     broadcastWebsocket(msg) {
@@ -12613,13 +12674,13 @@ async function winscmStartDispatcher1(opts) {
     worker.postMessage(JSON.stringify(workerRequest));
     await promise;
 }
-export { mod as log };
-export { mod8 as uuidv4 };
+export { mod7 as uuidv4 };
+export { mod8 as log, __default5 as logger };
 export { dayjs1 as dayjs };
 export { Yargs as yargs };
-export { __default6 as js2xml };
-export { SimpleServer1 as SimpleServer, SimpleRequest1 as SimpleRequest };
+export { __default7 as js2xml };
+export { SimpleRequest1 as SimpleRequest, SimpleServer1 as SimpleServer };
 export { winscmStartDispatcher1 as winscmStartDispatcher };
-export { mod6 as fs };
-export { mod7 as io };
-export { mod5 as path };
+export { mod5 as fs };
+export { mod6 as io };
+export { mod4 as path };

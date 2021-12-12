@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { log, path } from "../deps.js";
+import { log, logger, path } from "../deps.js";
 import conf from "../conf.js";
 import createDirs from "../startup/createDirs.js";
 import startServer from "../startup/startServer.js";
@@ -37,8 +37,6 @@ export default async () => {
       },
     },
   });
-
-  const logger = log.getLogger();
 
   const server = startServer();
   logger.info("Server started, running tests ...");
