@@ -22,7 +22,7 @@ import createWix from "./descriptor/createWix.js";
 export default (workDir, distDir) => {
   logger.info("Creating installer descriptor ...");
   const descPath =
-    `${workDir}${conf().installer.msiFileName}_${conf().appversion}.wxs`;
+    `${workDir}${conf.installer.msiFileName}_${conf.appversion}.wxs`;
 
   // create elements
   const declarationEl = createDeclaration();

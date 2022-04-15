@@ -80,7 +80,7 @@ export default (distDir) => {
   const installDirEl = {
     _attributes: {
       Id: "INSTALLDIR",
-      Name: conf().installer.installDirName + "-" + conf().appversion,
+      Name: conf.installer.installDirName + "-" + conf.appversion,
     },
     Directory: [],
     Component: [],

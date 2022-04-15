@@ -16,16 +16,15 @@
 
 import conf from "../conf.js";
 import { fs, logger, path } from "../deps.js";
+import ensurePost from "./support/ensurePost.js";
 
 export default async (req) => {
-  if ("POST" !== req.method) {
-    throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
-  }
+  ensurePost(req);
 
   logger.info("Rewriting config file ...");
 
-  const confPath = path.join(conf().appdir, "conf", "config.json");
-  const bkpPath = path.join(conf().appdir, "work", "config_prev.json");
+  const confPath = path.join(conf.appdir, "conf", "config.json");
+  const bkpPath = path.join(conf.appdir, "work", "config_prev.json");
 
   const confRaw = JSON.parse(Deno.readTextFileSync(confPath));
   confRaw.example = await req.json();

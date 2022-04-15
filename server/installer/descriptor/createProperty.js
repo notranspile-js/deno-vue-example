@@ -25,7 +25,7 @@ export default () => {
   }, {
     _attributes: {
       Id: "ARPHELPLINK",
-      Value: conf().installer.helpLink,
+      Value: conf.installer.helpLink,
     },
   }, {
     _attributes: {

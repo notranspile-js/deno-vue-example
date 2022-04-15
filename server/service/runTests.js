@@ -48,7 +48,7 @@ export default async () => {
       "-A",
       "--fail-fast",
     ],
-    cwd: path.join(conf().appdir)
+    cwd: path.join(conf.appdir)
   }).status();
   logger.info(`Test run finished, status code: [${status.code}]`);
 

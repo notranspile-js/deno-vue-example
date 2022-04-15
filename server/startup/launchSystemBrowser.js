@@ -25,7 +25,7 @@ function execPath() {
 }
 
 export default async (relUrl) => {
-  const sc = conf().server;
+  const sc = conf.server;
   const exec = execPath();
   await Deno.run({
     cmd: [exec, `http://127.0.0.1:${sc.tcpPort}/${relUrl}`],

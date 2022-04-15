@@ -21,17 +21,17 @@ export default () => {
   return [{
     _attributes: {
       Id: "WixUILicenseRtf",
-      Value: path.join(conf().appdir, "server/installer/resources/LICENSE.rtf"),
+      Value: path.join(conf.appdir, "server/installer/resources/LICENSE.rtf"),
     },
   }, {
     _attributes: {
       Id: "WixUIBannerBmp",
-      Value: path.join(conf().appdir, "server/installer/resources/top.bmp"),
+      Value: path.join(conf.appdir, "server/installer/resources/top.bmp"),
     },
   }, {
     _attributes: {
       Id: "WixUIDialogBmp",
-      Value: path.join(conf().appdir, "server/installer/resources/greetings.bmp"),
+      Value: path.join(conf.appdir, "server/installer/resources/greetings.bmp"),
     },
   }];
 };

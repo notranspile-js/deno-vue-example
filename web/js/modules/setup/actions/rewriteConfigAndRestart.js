@@ -27,7 +27,7 @@ async function ping(start, resolve, reject) {
   if (resp?.ok) {
     resolve(null);
   } else {
-    if (Date.now() < start + conf().restartTimeoutMillis) {
+    if (Date.now() < start + conf.restartTimeoutMillis) {
       setTimeout(() => ping(start, resolve, reject), 1000);
     } else if (503 === resp?.status) {
       reject(
@@ -36,7 +36,7 @@ async function ping(start, resolve, reject) {
     } else {
       reject(
         "Service has stopped, but hasn't started," +
-          ` timeout: [${conf().restartTimeoutMillis / 1000}],` +
+          ` timeout: [${conf.restartTimeoutMillis / 1000}],` +
           " please check the service status in SCM panel",
       );
     }

@@ -19,7 +19,7 @@ import conf from "../conf.js";
 
 export default () => {
   logger.info("Preparing work directory ...");
-  const workDir = path.join(conf().appdir, "work/installer/");
+  const workDir = path.join(conf.appdir, "work/installer/");
 
   fs.emptyDirSync(workDir);
 

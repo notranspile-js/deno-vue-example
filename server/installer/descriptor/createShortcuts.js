@@ -21,8 +21,8 @@ export default () => {
   return [{
     _attributes: {
       Id: genId(),
-      Name: conf().installer.shortcutLabel,
-      Description: conf().installer.shortcutLabel,
+      Name: conf.installer.shortcutLabel,
+      Description: conf.installer.shortcutLabel,
       Icon: "icon.exe",
       Directory: "DesktopFolder",
       WorkingDirectory: "INSTALLDIR",

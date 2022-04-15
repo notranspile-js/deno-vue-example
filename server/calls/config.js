@@ -15,9 +15,12 @@
  */
 
 import conf from "../conf.js";
+import ensureGet from "./support/ensureGet.js";
 
 export default (req) => {
+  ensureGet(req);
+
   return {
-    json: conf().web
+    json: conf.web
   };
 };

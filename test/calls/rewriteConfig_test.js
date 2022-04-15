@@ -19,8 +19,8 @@ import { path } from "../../server/deps.js";
 import { assert, assertEquals } from "../test_deps.js";
 
 Deno.test("calls/rewriteConfig success", async () => {
-  const confPath = path.join(conf().appdir, "conf", "config.json");
-  const bkpPath = path.join(conf().appdir, "work", "config_prev.json");
+  const confPath = path.join(conf.appdir, "conf", "config.json");
+  const bkpPath = path.join(conf.appdir, "work", "config_prev.json");
 
   const confBefore = JSON.parse(Deno.readTextFileSync(confPath));
   assertEquals(confBefore.example.foo, "baz");

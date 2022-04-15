@@ -18,7 +18,7 @@ import { dayjs, log } from "../deps.js";
 import conf from "../conf.js";
 
 export default async () => {
-  const lc = conf().logging;
+  const lc = conf.logging;
 
   await log.setup({
     handlers: {

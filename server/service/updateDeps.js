@@ -27,7 +27,7 @@ export default async () => {
       "deps_gen.ts",
       "deps.js",
     ],
-    cwd: path.join(conf().appdir, "server")
+    cwd: path.join(conf.appdir, "server")
   }).status();
   if (!status.success) {
     throw new Error("Dependencies update error");

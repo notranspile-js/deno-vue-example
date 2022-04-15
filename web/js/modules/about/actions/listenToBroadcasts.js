@@ -19,7 +19,7 @@ import conf from "../../../common/conf.js";
 export default async (ctx) => {
   if (!ctx.state.listening) {
     ctx.commit("enableListening");
-    const ws = new WebSocket(conf().webSocketUrl);
+    const ws = new WebSocket(conf.webSocketUrl);
     ws.addEventListener("message", (event) => {
       console.log("Receiving: [" + event.data + "]");
       const en = JSON.parse(event.data);

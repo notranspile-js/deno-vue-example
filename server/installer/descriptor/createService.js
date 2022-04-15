@@ -24,9 +24,9 @@ export default {
         Id: genId(),
         Type: "ownProcess",
         Vital: "yes",
-        Name: conf().installer.serviceName,
-        DisplayName: conf().installer.displayName,
-        Description: conf().installer.description,
+        Name: conf.installer.serviceName,
+        DisplayName: conf.installer.displayName,
+        Description: conf.installer.description,
         Start: "auto",
         Account: "LocalSystem",
         ErrorControl: "ignore",
@@ -43,7 +43,7 @@ export default {
     return {
       _attributes: {
         Id: genId(),
-        Name: conf().installer.serviceName,
+        Name: conf.installer.serviceName,
         Start: "install",
         Stop: "uninstall",
         Remove: "uninstall",

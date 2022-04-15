@@ -17,11 +17,10 @@
 import { logger } from "../deps.js";
 import restartWinscmService from "../service/restartWinscmService.js";
 import shutdownFlag from "../service/shutdownFlag.js";
+import ensurePost from "./support/ensurePost.js";
 
 export default (req) => {
-  if ("POST" !== req.method) {
-    throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
-  }
+  ensurePost(req);
 
   shutdownFlag.mark();
 

@@ -55,7 +55,7 @@ export { yargs };
 
 // js2xml
 // @ts-ignore extension
-export { js2xml } from "https://deno.land/x/js2xml@1.0.2/mod.ts";
+export { js2xml } from "https://deno.land/x/js2xml@1.0.4/mod.ts";
 
 // simple_server
 // @ts-ignore extension

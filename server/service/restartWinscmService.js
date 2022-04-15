@@ -19,7 +19,7 @@ import conf from "../conf.js";
 
 export default async () => {
   // prepare dir
-  const dir = path.join(conf().appdir, "work/restart");
+  const dir = path.join(conf.appdir, "work/restart");
   if (!fs.existsSync(dir)) {
     Deno.mkdirSync(dir);
   }
@@ -31,7 +31,7 @@ export default async () => {
   const template = Deno.readTextFileSync(templatePath);
   const dirBackSlash = dir.replaceAll("/", "\\");
   const script = template
-        .replaceAll("{{serviceName}}", conf().winscm.name)
+        .replaceAll("{{serviceName}}", conf.winscm.name)
         .replaceAll("{{startOutput}}", `${dirBackSlash}\\start_out.txt`)
         .replaceAll("{{stopOutput}}", `${dirBackSlash}\\stop_out.txt`);
   const batPath = path.join(dir, "restart.bat");

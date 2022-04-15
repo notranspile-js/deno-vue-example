@@ -25,7 +25,7 @@ import restartStatus from "./restartStatus.js";
 import rewriteConfig from "./rewriteConfig.js";
 
 export default async (req) => {
-  const name = req.path.substring(conf().server.http.path.length);
+  const name = req.path.substring(conf.server.http.path.length);
   switch (name) {
 
     case "beginBroadcast": return await beginBroadcast(req);

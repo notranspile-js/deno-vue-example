@@ -14,15 +14,5 @@
  * limitations under the License.
  */
 
-// initialized on startup
-let conf = null;
-
-export default (initConf) => {
-  if (null !== conf) {
-    return conf;
-  } else if (null !== initConf) {
-    conf = initConf;
-  } else {
-    throw new Error("Invalid state: configuration must be initialized on startup");
-  }
-}
+const resp = await fetch("/api/config");
+export default await resp.json();

@@ -16,13 +16,12 @@
 
 import { dayjs, logger } from "../deps.js";
 import intervalTracker from "../service/intervalTracker.js";
+import ensurePost from "./support/ensurePost.js";
 
 let active = false;
 
 export default async (req) => {
-  if ("POST" !== req.method) {
-    throw new Error(`Invalid method: [${req.method}], must be: 'POST'`);
-  }
+  ensurePost(req);
 
   const obj = await req.json();
 

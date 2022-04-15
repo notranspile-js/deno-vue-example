@@ -16,16 +16,9 @@
 
 import { path } from "./deps.js";
 
-let conf = null;
-
-export default () => {
-  if (null === conf) {
-    const filePath = path.fromFileUrl(import.meta.url);
-    const serverdir = path.dirname(filePath);
-    const appdir = path.dirname(serverdir).replaceAll("\\", "/");
-    const txt = Deno.readTextFileSync(path.join(appdir, "conf/config.json"));
-    const replaced = txt.replaceAll("{{appdir}}", appdir);
-    conf = JSON.parse(replaced);
-  }
-  return conf;
-};
+const filePath = path.fromFileUrl(import.meta.url);
+const serverdir = path.dirname(filePath);
+const appdir = path.dirname(serverdir).replaceAll("\\", "/");
+const txt = Deno.readTextFileSync(path.join(appdir, "conf/config.json"));
+const replaced = txt.replaceAll("{{appdir}}", appdir);
+export default JSON.parse(replaced);

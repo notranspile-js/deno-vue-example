@@ -19,7 +19,7 @@ import conf from "../conf.js";
 import httpHandler from "../calls/_calls.js";
 
 export default () => {
-  const cs = conf().server;
+  const cs = conf.server;
 
   const server = new SimpleServer({
     listen: {

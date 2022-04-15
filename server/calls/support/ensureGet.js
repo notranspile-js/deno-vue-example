@@ -1,5 +1,5 @@
 /*
- * Copyright 2021, alex at staticlibs.net
+ * Copyright 2022, alex at staticlibs.net
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,8 @@
  * limitations under the License.
  */
 
-import shutdownFlag from "../service/shutdownFlag.js";
-import ensureGet from "./support/ensureGet.js";
-
 export default (req) => {
-  ensureGet(req);
-
-  if (shutdownFlag.get()) {
-    return {
-      status: 503,
-      statusText: "Service Unavailable",
-      json: {
-        status: "RESTART",
-      },
-    };
-  } else {
-    return {
-      json: {
-        status: "OK",
-      },
-    };
+  if ("GET" !== req.method) {
+    throw new Error(`Invalid method: [${req.method}], must be: 'GET'`);
   }
 };

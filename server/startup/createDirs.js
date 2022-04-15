@@ -18,17 +18,17 @@ import { fs, path } from "../deps.js";
 import conf from "../conf.js";
 
 export default () => {
-  const log = path.join(conf().appdir, "log");
+  const log = path.join(conf.appdir, "log");
   if (!fs.existsSync(log)) {
     Deno.mkdirSync(log);
   }
-  const work = path.join(conf().appdir, "work");
+  const work = path.join(conf.appdir, "work");
   if (!fs.existsSync(work)) {
     Deno.mkdirSync(work);
   }
 
   // preserve last used config just in case
-  const confPath = path.join(conf().appdir, "conf", "config.json");
+  const confPath = path.join(conf.appdir, "conf", "config.json");
   const lastConfPath = path.join(work, "config_last.json");
   Deno.copyFileSync(confPath, lastConfPath);
 };

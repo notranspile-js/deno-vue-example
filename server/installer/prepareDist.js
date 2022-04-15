@@ -24,11 +24,11 @@ export default (workDir) => {
   const distDir = join(workDir, "dist");
   Deno.mkdirSync(distDir);
 
-  fs.copySync(join(conf().appdir, "bin"), join(distDir, "bin"));
-  fs.copySync(join(conf().appdir, "conf"), join(distDir, "conf"));
-  fs.copySync(join(conf().appdir, "server"), join(distDir, "server"));
-  fs.copySync(join(conf().appdir, "web"), join(distDir, "web"));
-  fs.copySync(join(conf().appdir, "main.js"), join(distDir, "main.js"));
+  fs.copySync(join(conf.appdir, "bin"), join(distDir, "bin"));
+  fs.copySync(join(conf.appdir, "conf"), join(distDir, "conf"));
+  fs.copySync(join(conf.appdir, "server"), join(distDir, "server"));
+  fs.copySync(join(conf.appdir, "web"), join(distDir, "web"));
+  fs.copySync(join(conf.appdir, "main.js"), join(distDir, "main.js"));
 
   return distDir;
 };

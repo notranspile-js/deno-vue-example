@@ -18,6 +18,6 @@ import conf from "../conf.js";
 
 export default (req) => {
   return {
-    json: conf().example
+    json: conf.example
   };
 };

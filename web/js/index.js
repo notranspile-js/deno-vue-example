@@ -18,14 +18,9 @@ import { createApp } from "./libs/vue.esm-browser.js";
 import { createRouter } from "./libs/vue-router.esm-browser.js";
 import { createStore } from "./libs/vuex.esm-browser.js";
 
-import conf from "./common/conf.js";
 import root from "./root.js";
 import store from "./store.js";
 import router from "./router.js";
-
-const resp = await fetch("/api/config");
-const confVal = await resp.json();
-conf(confVal);
 
 const app = createApp(root);
 

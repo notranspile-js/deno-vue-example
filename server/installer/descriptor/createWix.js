@@ -35,10 +35,10 @@ export default (distDir) => {
           Id: uuidv4.generate(),
           Codepage: "1252",
           Language: "1033",
-          Manufacturer: conf().installer.manufacturer,
-          Name: conf().installer.productName,
-          UpgradeCode: conf().installer.upgradeCode,
-          Version: conf().appversion,
+          Manufacturer: conf.installer.manufacturer,
+          Name: conf.installer.productName,
+          UpgradeCode: conf.installer.upgradeCode,
+          Version: conf.appversion,
         },
         Package: {
           _attributes: {
@@ -75,7 +75,7 @@ export default (distDir) => {
         Icon: {
           _attributes: {
             Id: "icon.exe",
-            SourceFile: path.join(conf().appdir, "server/installer/resources/icon.ico"),
+            SourceFile: path.join(conf.appdir, "server/installer/resources/icon.ico"),
           },
         },
         MajorUpgrade: {

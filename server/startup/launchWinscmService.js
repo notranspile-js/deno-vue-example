@@ -32,9 +32,9 @@ export default async () => {
   try {
     // this call blocks until the service is stopped
     await winscmStartDispatcher({
-        libraryPath: conf().winscm.libPath,
-        serviceName: conf().winscm.name,
-        logFilePath: conf().winscm.logPath
+        libraryPath: conf.winscm.libPath,
+        serviceName: conf.winscm.name,
+        logFilePath: conf.winscm.logPath
     });
   } catch (e) {
     logger.critical(e);
