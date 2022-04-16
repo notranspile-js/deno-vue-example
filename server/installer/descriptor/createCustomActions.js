@@ -20,8 +20,8 @@ export default {
       _attributes: {
         Id: "uninstall_cleanup_immediate",
         Property: "uninstall_cleanup_deferred",
-        Value: "&quot;[SystemFolder]cmd.exe&quot; /c" +
-          " rd /s /q &quot;[INSTALLDIR]&quot;",
+        Value: "\"[SystemFolder]cmd.exe\" /c" +
+          " rd /s /q \"[INSTALLDIR]\"",
       },
     }, {
       _attributes: {
@@ -40,7 +40,7 @@ export default {
         Execute: "deferred",
         Impersonate: "no",
         ExeCommand: "run -A" +
-          " &quot;[INSTALLDIR]main.js&quot;" +
+          " \"[INSTALLDIR]main.js\"" +
           " check-sanity",
       },
     }, {
@@ -50,7 +50,7 @@ export default {
         Return: "asyncNoWait",
         Impersonate: "yes",
         ExeCommand: "run -A" +
-          " &quot;[INSTALLDIR]main.js&quot;" +
+          " \"[INSTALLDIR]main.js\"" +
           " launch-system-browser" +
           " --url web/index.html#/landing",
       },

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { logger, winscmStartDispatcher } from "../deps.js";
+import { logger, path, winscmStartDispatcher } from "../deps.js";
 import conf from "../conf.js";
 import shutdownFlag from "../service/shutdownFlag.js";
 import createDirs from "./createDirs.js";
@@ -29,20 +29,27 @@ export default async () => {
   const server = startServer();
 
   logger.info("Is due to call SCM dispatcher ...");
+  const workerPath = path.join(
+    conf.appdir,
+    "server",
+    "service",
+    "winscmWorker.js",
+  ).replaceAll("\\", "/");
   try {
     // this call blocks until the service is stopped
     await winscmStartDispatcher({
-        libraryPath: conf.winscm.libPath,
-        serviceName: conf.winscm.name,
-        logFilePath: conf.winscm.logPath
+      libraryPath: conf.winscm.libPath,
+      serviceName: conf.winscm.name,
+      workerPath: workerPath,
+      logFilePath: conf.winscm.logPath,
     });
   } catch (e) {
     logger.critical(e);
   }
 
-  logger.info("Shutting down ...")
+  logger.info("Shutting down ...");
   shutdownFlag.mark();
   intervalTracker.clear();
   await server.close();
-  logger.critical("Shutdown complete")
+  logger.critical("Shutdown complete");
 };

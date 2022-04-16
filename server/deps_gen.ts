@@ -66,4 +66,4 @@ export {
 
 // windows_scm
 // @ts-ignore extension
-export { winscmStartDispatcher } from "https://deno.land/x/windows_scm@1.1.1/mod.ts";
+export { winscmStartDispatcher } from "https://deno.land/x/windows_scm@1.1.2/mod.ts";
