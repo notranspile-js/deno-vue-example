@@ -38,9 +38,6 @@ export * as io from "https://deno.land/std@0.110.0/io/mod.ts";
 export * as path from "https://deno.land/std@0.110.0/path/mod.ts";
 
 // @ts-ignore extension
-export { v4 as uuidv4 } from "https://deno.land/std@0.110.0/uuid/mod.ts";
-
-// @ts-ignore extension
 export { log, logger } from "https://deno.land/x/notranspile_logger@1.1.0/mod.ts"
 
 // dayjs

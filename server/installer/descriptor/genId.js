@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { uuidv4 } from "../../deps.js";
-
 export default () => {
-  const uuid = uuidv4.generate();
+  const uuid = crypto.randomUUID();
   return "_" + uuid.replace(/-/g, "_");
 };

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { uuidv4, path } from "../../deps.js";
+import { path } from "../../deps.js";
 import conf from "../../conf.js";
 import createService from "./createService.js";
 import createShortcuts from "./createShortcuts.js";
@@ -50,7 +50,7 @@ function processDirRecursive(dirPath, dirEl) {
       dirEl.Component.push({
         _attributes: {
           Id: genId(),
-          Guid: uuidv4.generate(),
+          Guid: crypto.randomUUID(),
           Win64: "yes",
         },
         File: {

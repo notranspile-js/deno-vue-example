@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { uuidv4, path } from "../../deps.js";
+import { path } from "../../deps.js";
 import conf from "../../conf.js";
 import createDirectory from "./createDirectory.js";
 import createFeature from "./createFeature.js";
@@ -32,7 +32,7 @@ export default (distDir) => {
       },
       Product: {
         _attributes: {
-          Id: uuidv4.generate(),
+          Id: crypto.randomUUID(),
           Codepage: "1252",
           Language: "1033",
           Manufacturer: conf.installer.manufacturer,

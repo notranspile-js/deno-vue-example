@@ -5,11 +5,11 @@
 const SECONDS_A_HOUR = 60 * 60;
 const SECONDS_A_DAY = SECONDS_A_HOUR * 24;
 const SECONDS_A_WEEK = SECONDS_A_DAY * 7;
-const MILLISECONDS_A_SECOND = 1000;
-const MILLISECONDS_A_MINUTE = 60 * 1000;
-const MILLISECONDS_A_HOUR = SECONDS_A_HOUR * 1000;
-const MILLISECONDS_A_DAY = SECONDS_A_DAY * 1000;
-const MILLISECONDS_A_WEEK = SECONDS_A_WEEK * 1000;
+const MILLISECONDS_A_SECOND = 1e3;
+const MILLISECONDS_A_MINUTE = 60 * 1e3;
+const MILLISECONDS_A_HOUR = SECONDS_A_HOUR * 1e3;
+const MILLISECONDS_A_DAY = SECONDS_A_DAY * 1e3;
+const MILLISECONDS_A_WEEK = SECONDS_A_WEEK * 1e3;
 const MS = 'millisecond';
 const S = 'second';
 const MIN = 'minute';
@@ -287,7 +287,7 @@ class Dayjs {
         const step = {
             [MIN]: MILLISECONDS_A_MINUTE,
             [H]: MILLISECONDS_A_HOUR,
-            [S]: 1000
+            [S]: 1e3
         }[unit] || 1;
         const nextTimeStamp = this.$d.getTime() + number * step;
         return __default1.w(nextTimeStamp, this);
@@ -438,7 +438,7 @@ dayjs.extend = (plugin, option)=>{
 };
 dayjs.locale = parseLocale;
 dayjs.isDayjs = isDayjs;
-dayjs.unix = (timestamp)=>dayjs(timestamp * 1000)
+dayjs.unix = (timestamp)=>dayjs(timestamp * 1e3)
 ;
 dayjs.en = Ls[L];
 dayjs.Ls = Ls;
@@ -719,7 +719,7 @@ function isKeyedCollection(x) {
 }
 function equal(c, d) {
     const seen = new Map();
-    return (function compare(a, b) {
+    return function compare(a, b) {
         if (a && b && (a instanceof RegExp && b instanceof RegExp || a instanceof URL && b instanceof URL)) {
             return String(a) === String(b);
         }
@@ -786,7 +786,7 @@ function equal(c, d) {
             return true;
         }
         return false;
-    })(c, d);
+    }(c, d);
 }
 function assertNotEquals(actual, expected, msg) {
     if (!equal(actual, expected)) {
@@ -3841,7 +3841,7 @@ class Printf {
                         if (i !== 0 && this.flags.space) {
                             hex += sharp ? " 0x" : " ";
                         }
-                        const c = (val.charCodeAt(i) & 255).toString(16);
+                        const c = (val.charCodeAt(i) & 0xff).toString(16);
                         hex += c.length === 1 ? `0${c}` : c;
                     }
                     if (upper) {
@@ -4139,8 +4139,8 @@ function argsert(arg1, arg2, arg3) {
             if (matchingTypes.length === 0) argumentTypeError(observedType, optional.cmd, position);
             position += 1;
         });
-    } catch (err1) {
-        console.warn(err1.stack);
+    } catch (err2) {
+        console.warn(err2.stack);
     }
 }
 function guessType(arg) {
@@ -4240,15 +4240,15 @@ function applyMiddleware(argv6, yargs, middlewares, beforeValidation) {
         }
     }, argv6);
 }
-function maybeAsyncResult(getResult, resultHandler, errorHandler = (err2)=>{
-    throw err2;
+function maybeAsyncResult(getResult, resultHandler, errorHandler = (err3)=>{
+    throw err3;
 }) {
     try {
         const result1 = isFunction(getResult) ? getResult() : getResult;
         return isPromise(result1) ? result1.then((result)=>resultHandler(result)
         ) : resultHandler(result1);
-    } catch (err3) {
-        return errorHandler(err3);
+    } catch (err4) {
+        return errorHandler(err4);
     }
 }
 function isFunction(arg) {
@@ -4256,9 +4256,9 @@ function isFunction(arg) {
 }
 function whichModule(exported) {
     if (typeof require === 'undefined') return null;
-    for(let i = 0, files = Object.keys(require.cache), mod9; i < files.length; i++){
-        mod9 = require.cache[files[i]];
-        if (mod9.exports === exported) return mod9;
+    for(let i = 0, files = Object.keys(require.cache), mod8; i < files.length; i++){
+        mod8 = require.cache[files[i]];
+        if (mod8.exports === exported) return mod8;
     }
     return null;
 }
@@ -4312,16 +4312,16 @@ function usage(yargs, shim4) {
         return self;
     };
     let failureOutput = false;
-    self.fail = function fail(msg, err4) {
+    self.fail = function fail(msg, err5) {
         const logger = yargs.getInternalMethods().getLoggerInstance();
         if (fails.length) {
             for(let i = fails.length - 1; i >= 0; --i){
                 const fail = fails[i];
                 if (isBoolean(fail)) {
-                    if (err4) throw err4;
+                    if (err5) throw err5;
                     else if (msg) throw Error(msg);
                 } else {
-                    fail(msg, err4, self);
+                    fail(msg, err5, self);
                 }
             }
         } else {
@@ -4332,19 +4332,19 @@ function usage(yargs, shim4) {
                     yargs.showHelp('error');
                     logger.error();
                 }
-                if (msg || err4) logger.error(msg || err4);
+                if (msg || err5) logger.error(msg || err5);
                 if (failMessage) {
-                    if (msg || err4) logger.error('');
+                    if (msg || err5) logger.error('');
                     logger.error(failMessage);
                 }
             }
-            err4 = err4 || new YError(msg);
+            err5 = err5 || new YError(msg);
             if (yargs.getExitProcess()) {
                 return yargs.exit(1);
             } else if (yargs.getInternalMethods().hasParseCallback()) {
-                return yargs.exit(1, err4);
+                return yargs.exit(1, err5);
             } else {
-                throw err4;
+                throw err5;
             }
         }
     };
@@ -4878,7 +4878,7 @@ const specialKeys = [
     '--',
     '_'
 ];
-function validation(yargs, usage1, shim5) {
+function validation(yargs, usage2, shim5) {
     const __ = shim5.y18n.__;
     const __n = shim5.y18n.__n;
     const self = {};
@@ -4889,22 +4889,22 @@ function validation(yargs, usage1, shim5) {
         if (demandedCommands._ && (_s < demandedCommands._.min || _s > demandedCommands._.max)) {
             if (_s < demandedCommands._.min) {
                 if (demandedCommands._.minMsg !== undefined) {
-                    usage1.fail(demandedCommands._.minMsg ? demandedCommands._.minMsg.replace(/\$0/g, _s.toString()).replace(/\$1/, demandedCommands._.min.toString()) : null);
+                    usage2.fail(demandedCommands._.minMsg ? demandedCommands._.minMsg.replace(/\$0/g, _s.toString()).replace(/\$1/, demandedCommands._.min.toString()) : null);
                 } else {
-                    usage1.fail(__n('Not enough non-option arguments: got %s, need at least %s', 'Not enough non-option arguments: got %s, need at least %s', _s, _s.toString(), demandedCommands._.min.toString()));
+                    usage2.fail(__n('Not enough non-option arguments: got %s, need at least %s', 'Not enough non-option arguments: got %s, need at least %s', _s, _s.toString(), demandedCommands._.min.toString()));
                 }
             } else if (_s > demandedCommands._.max) {
                 if (demandedCommands._.maxMsg !== undefined) {
-                    usage1.fail(demandedCommands._.maxMsg ? demandedCommands._.maxMsg.replace(/\$0/g, _s.toString()).replace(/\$1/, demandedCommands._.max.toString()) : null);
+                    usage2.fail(demandedCommands._.maxMsg ? demandedCommands._.maxMsg.replace(/\$0/g, _s.toString()).replace(/\$1/, demandedCommands._.max.toString()) : null);
                 } else {
-                    usage1.fail(__n('Too many non-option arguments: got %s, maximum of %s', 'Too many non-option arguments: got %s, maximum of %s', _s, _s.toString(), demandedCommands._.max.toString()));
+                    usage2.fail(__n('Too many non-option arguments: got %s, maximum of %s', 'Too many non-option arguments: got %s, maximum of %s', _s, _s.toString(), demandedCommands._.max.toString()));
                 }
             }
         }
     };
     self.positionalCount = function positionalCount(required, observed) {
         if (observed < required) {
-            usage1.fail(__n('Not enough non-option arguments: got %s, need at least %s', 'Not enough non-option arguments: got %s, need at least %s', observed, observed + '', required + ''));
+            usage2.fail(__n('Not enough non-option arguments: got %s, need at least %s', 'Not enough non-option arguments: got %s, need at least %s', observed, observed + '', required + ''));
         }
     };
     self.requiredArguments = function requiredArguments(argv8, demandedOptions) {
@@ -4924,7 +4924,7 @@ function validation(yargs, usage1, shim5) {
                 }
             }
             const customMsg = customMsgs.length ? `\n${customMsgs.join('\n')}` : '';
-            usage1.fail(__n('Missing required argument: %s', 'Missing required arguments: %s', Object.keys(missing).length, Object.keys(missing).join(', ') + customMsg));
+            usage2.fail(__n('Missing required argument: %s', 'Missing required arguments: %s', Object.keys(missing).length, Object.keys(missing).join(', ') + customMsg));
         }
     };
     self.unknownArguments = function unknownArguments(argv9, aliases, positionalMap, isDefaultCommand, checkPositionals = true) {
@@ -4944,7 +4944,7 @@ function validation(yargs, usage1, shim5) {
             });
         }
         if (unknown.length > 0) {
-            usage1.fail(__n('Unknown argument: %s', 'Unknown arguments: %s', unknown.length, unknown.join(', ')));
+            usage2.fail(__n('Unknown argument: %s', 'Unknown arguments: %s', unknown.length, unknown.join(', ')));
         }
     };
     self.unknownCommands = function unknownCommands(argv10) {
@@ -4959,7 +4959,7 @@ function validation(yargs, usage1, shim5) {
             });
         }
         if (unknown.length > 0) {
-            usage1.fail(__n('Unknown command: %s', 'Unknown commands: %s', unknown.length, unknown.join(', ')));
+            usage2.fail(__n('Unknown command: %s', 'Unknown commands: %s', unknown.length, unknown.join(', ')));
             return true;
         } else {
             return false;
@@ -4993,9 +4993,9 @@ function validation(yargs, usage1, shim5) {
         if (!invalidKeys.length) return;
         let msg = __('Invalid values:');
         invalidKeys.forEach((key)=>{
-            msg += `\n  ${__('Argument: %s, Given: %s, Choices: %s', key, usage1.stringifiedValues(invalid[key]), usage1.stringifiedValues(options.choices[key]))}`;
+            msg += `\n  ${__('Argument: %s, Given: %s, Choices: %s', key, usage2.stringifiedValues(invalid[key]), usage2.stringifiedValues(options.choices[key]))}`;
         });
-        usage1.fail(msg);
+        usage2.fail(msg);
     };
     let implied = {};
     self.implies = function implies(key, value) {
@@ -5056,7 +5056,7 @@ function validation(yargs, usage1, shim5) {
             implyFail.forEach((value)=>{
                 msg += value;
             });
-            usage1.fail(msg);
+            usage2.fail(msg);
         }
     };
     let conflicting = {};
@@ -5089,7 +5089,7 @@ function validation(yargs, usage1, shim5) {
             if (conflicting[key]) {
                 conflicting[key].forEach((value)=>{
                     if (value && argv14[key] !== undefined && argv14[value] !== undefined) {
-                        usage1.fail(__('Arguments %s and %s are mutually exclusive', key, value));
+                        usage2.fail(__('Arguments %s and %s are mutually exclusive', key, value));
                     }
                 });
             }
@@ -5108,7 +5108,7 @@ function validation(yargs, usage1, shim5) {
                 recommended = candidate;
             }
         }
-        if (recommended) usage1.fail(__('Did you mean %s?', recommended));
+        if (recommended) usage2.fail(__('Did you mean %s?', recommended));
     };
     self.reset = function reset(localLookup) {
         implied = objFilter(implied, (k)=>!localLookup[k]
@@ -5246,13 +5246,13 @@ function isYargsInstance(y) {
     return !!y && typeof y.getInternalMethods === 'function';
 }
 class CommandInstance {
-    constructor(usage2, validation1, globalMiddleware, shim6){
+    constructor(usage3, validation1, globalMiddleware, shim6){
         this.requireCache = new Set();
         this.handlers = {};
         this.aliasMap = {};
         this.frozens = [];
         this.shim = shim6;
-        this.usage = usage2;
+        this.usage = usage3;
         this.globalMiddleware = globalMiddleware;
         this.validation = validation1;
     }
@@ -5574,9 +5574,9 @@ class CommandInstance {
         return undefined;
     }
     moduleName(obj) {
-        const mod10 = whichModule(obj);
-        if (!mod10) throw new Error(`No command name given for module: ${this.shim.inspect(obj)}`);
-        return this.commandFromFilename(mod10.filename);
+        const mod9 = whichModule(obj);
+        if (!mod9) throw new Error(`No command name given for module: ${this.shim.inspect(obj)}`);
+        return this.commandFromFilename(mod9.filename);
     }
     commandFromFilename(filename) {
         return this.shim.path.basename(filename, this.shim.path.extname(filename));
@@ -5612,8 +5612,8 @@ class CommandInstance {
         return this;
     }
 }
-function command(usage3, validation3, globalMiddleware, shim7) {
-    return new CommandInstance(usage3, validation3, globalMiddleware, shim7);
+function command(usage4, validation3, globalMiddleware, shim7) {
+    return new CommandInstance(usage4, validation3, globalMiddleware, shim7);
 }
 function isCommandBuilderDefinition(builder) {
     return typeof builder === 'object' && !!builder.builder && typeof builder.handler === 'function';
@@ -5626,11 +5626,11 @@ function isCommandBuilderCallback(builder) {
     return typeof builder === 'function';
 }
 class Completion {
-    constructor(yargs, usage4, command2, shim8){
+    constructor(yargs, usage5, command4, shim8){
         var _a, _b, _c;
         this.yargs = yargs;
-        this.usage = usage4;
-        this.command = command2;
+        this.usage = usage5;
+        this.command = command4;
         this.shim = shim8;
         this.completionKey = 'get-yargs-completions';
         this.aliases = null;
@@ -5717,9 +5717,9 @@ class Completion {
                     this.shim.process.nextTick(()=>{
                         done(null, list);
                     });
-                }).catch((err5)=>{
+                }).catch((err6)=>{
                     this.shim.process.nextTick(()=>{
-                        done(err5, undefined);
+                        done(err6, undefined);
                     });
                 });
             }
@@ -5758,8 +5758,8 @@ class Completion {
         this.aliases = parsed.aliases;
     }
 }
-function completion(yargs, usage5, command3, shim9) {
-    return new Completion(yargs, usage5, command3, shim9);
+function completion(yargs, usage6, command5, shim9) {
+    return new Completion(yargs, usage6, command5, shim9);
 }
 class YargsInstance {
     constructor(processArgs = [], cwd4, parentRequire, shim10){
@@ -5885,8 +5885,8 @@ class YargsInstance {
                     __classPrivateFieldGet(this, _usage).fail(result.toString(), result);
                 }
                 return argv25;
-            }, (err6)=>{
-                __classPrivateFieldGet(this, _usage).fail(err6.message ? err6.message : err6.toString(), err6);
+            }, (err7)=>{
+                __classPrivateFieldGet(this, _usage).fail(err7.message ? err7.message : err7.toString(), err7);
                 return argv25;
             });
         }, false, global);
@@ -5936,8 +5936,8 @@ class YargsInstance {
                     }
                 }
                 return argv26;
-            }, (err7)=>{
-                throw new YError(err7.message);
+            }, (err8)=>{
+                throw new YError(err8.message);
             });
         }, keys);
         return this;
@@ -6154,9 +6154,9 @@ class YargsInstance {
         }
         return this;
     }
-    exit(code17, err8) {
+    exit(code17, err9) {
         __classPrivateFieldSet(this, _hasOutput, true);
-        __classPrivateFieldSet(this, _exitError, err8);
+        __classPrivateFieldSet(this, _exitError, err9);
         if (__classPrivateFieldGet(this, _exitProcess)) __classPrivateFieldGet(this, _shim_1).process.exit(code17);
     }
     exitProcess(enabled3 = true) {
@@ -6186,8 +6186,8 @@ class YargsInstance {
         ], arguments.length);
         if (!done) {
             return new Promise((resolve7, reject)=>{
-                __classPrivateFieldGet(this, _completion).getCompletion(args, (err9, completions)=>{
-                    if (err9) reject(err9);
+                __classPrivateFieldGet(this, _completion).getCompletion(args, (err10, completions)=>{
+                    if (err10) reject(err10);
                     else resolve7(completions);
                 });
             });
@@ -6454,11 +6454,11 @@ class YargsInstance {
             return parsed.then((argv27)=>{
                 if (__classPrivateFieldGet(this, _parseFn_1)) __classPrivateFieldGet(this, _parseFn_1).call(this, __classPrivateFieldGet(this, _exitError), argv27, __classPrivateFieldGet(this, _output));
                 return argv27;
-            }).catch((err10)=>{
+            }).catch((err11)=>{
                 if (__classPrivateFieldGet(this, _parseFn_1)) {
-                    __classPrivateFieldGet(this, _parseFn_1)(err10, this.parsed.argv, __classPrivateFieldGet(this, _output));
+                    __classPrivateFieldGet(this, _parseFn_1)(err11, this.parsed.argv, __classPrivateFieldGet(this, _output));
                 }
-                throw err10;
+                throw err11;
             }).finally(()=>{
                 this[kUnfreeze]();
                 this.parsed = tmpParsed;
@@ -6864,28 +6864,28 @@ class YargsInstance {
             __classPrivateFieldGet(this, _options)[type].push(key);
         });
     }
-    [kPopulateParserHintSingleValueDictionary](builder, type1, key1, value1) {
-        this[kPopulateParserHintDictionary](builder, type1, key1, value1, (type, key, value)=>{
+    [kPopulateParserHintSingleValueDictionary](builder, type1, key3, value1) {
+        this[kPopulateParserHintDictionary](builder, type1, key3, value1, (type, key, value)=>{
             __classPrivateFieldGet(this, _options)[type][key] = value;
         });
     }
-    [kPopulateParserHintArrayDictionary](builder, type2, key2, value2) {
-        this[kPopulateParserHintDictionary](builder, type2, key2, value2, (type, key, value)=>{
+    [kPopulateParserHintArrayDictionary](builder, type2, key4, value2) {
+        this[kPopulateParserHintDictionary](builder, type2, key4, value2, (type, key, value)=>{
             __classPrivateFieldGet(this, _options)[type][key] = (__classPrivateFieldGet(this, _options)[type][key] || []).concat(value);
         });
     }
-    [kPopulateParserHintDictionary](builder, type, key3, value, singleKeyHandler) {
-        if (Array.isArray(key3)) {
-            key3.forEach((k)=>{
+    [kPopulateParserHintDictionary](builder, type, key5, value, singleKeyHandler) {
+        if (Array.isArray(key5)) {
+            key5.forEach((k)=>{
                 builder(k, value);
             });
         } else if (((key)=>typeof key === 'object'
-        )(key3)) {
-            for (const k of objectKeys(key3)){
-                builder(k, key3[k]);
+        )(key5)) {
+            for (const k of objectKeys(key5)){
+                builder(k, key5[k]);
             }
         } else {
-            singleKeyHandler(type, this[kSanitizeKey](key3), value);
+            singleKeyHandler(type, this[kSanitizeKey](key5), value);
         }
     }
     [kSanitizeKey](key) {
@@ -7168,8 +7168,8 @@ class YargsInstance {
                 if (__classPrivateFieldGet(this, _exitProcess)) setBlocking(true);
                 args = [].concat(args);
                 const completionArgs = args.slice(args.indexOf(`--${__classPrivateFieldGet(this, _completion).completionKey}`) + 1);
-                __classPrivateFieldGet(this, _completion).getCompletion(completionArgs, (err11, completions)=>{
-                    if (err11) throw new YError(err11.message);
+                __classPrivateFieldGet(this, _completion).getCompletion(completionArgs, (err12, completions)=>{
+                    if (err12) throw new YError(err12.message);
                     (completions || []).forEach((completion1)=>{
                         __classPrivateFieldGet(this, _logger).log(completion1);
                     });
@@ -7209,9 +7209,9 @@ class YargsInstance {
                     }
                 }
             }
-        } catch (err12) {
-            if (err12 instanceof YError) __classPrivateFieldGet(this, _usage).fail(err12.message, err12);
-            else throw err12;
+        } catch (err13) {
+            if (err13 instanceof YError) __classPrivateFieldGet(this, _usage).fail(err13.message, err13);
+            else throw err13;
         }
         return this[kPostProcess](argvPromise !== null && argvPromise !== void 0 ? argvPromise : argv32, populateDoubleDash, !!calledFromCommand, true);
     }
@@ -8681,9 +8681,9 @@ async function emptyDir(dir) {
                 });
             }
         }
-    } catch (err13) {
-        if (!(err13 instanceof Deno.errors.NotFound)) {
-            throw err13;
+    } catch (err14) {
+        if (!(err14 instanceof Deno.errors.NotFound)) {
+            throw err14;
         }
         await Deno.mkdir(dir, {
             recursive: true
@@ -8704,9 +8704,9 @@ function emptyDirSync(dir) {
                 });
             }
         }
-    } catch (err14) {
-        if (!(err14 instanceof Deno.errors.NotFound)) {
-            throw err14;
+    } catch (err15) {
+        if (!(err15 instanceof Deno.errors.NotFound)) {
+            throw err15;
         }
         Deno.mkdirSync(dir, {
             recursive: true
@@ -8732,14 +8732,14 @@ async function ensureDir(dir) {
         if (!fileInfo.isDirectory) {
             throw new Error(`Ensure path exists, expected 'dir', got '${getFileInfoType(fileInfo)}'`);
         }
-    } catch (err15) {
-        if (err15 instanceof Deno.errors.NotFound) {
+    } catch (err16) {
+        if (err16 instanceof Deno.errors.NotFound) {
             await Deno.mkdir(dir, {
                 recursive: true
             });
             return;
         }
-        throw err15;
+        throw err16;
     }
 }
 function ensureDirSync(dir) {
@@ -8748,14 +8748,14 @@ function ensureDirSync(dir) {
         if (!fileInfo.isDirectory) {
             throw new Error(`Ensure path exists, expected 'dir', got '${getFileInfoType(fileInfo)}'`);
         }
-    } catch (err16) {
-        if (err16 instanceof Deno.errors.NotFound) {
+    } catch (err17) {
+        if (err17 instanceof Deno.errors.NotFound) {
             Deno.mkdirSync(dir, {
                 recursive: true
             });
             return;
         }
-        throw err16;
+        throw err17;
     }
 }
 async function ensureFile(filePath) {
@@ -8764,13 +8764,13 @@ async function ensureFile(filePath) {
         if (!stat.isFile) {
             throw new Error(`Ensure path exists, expected 'file', got '${getFileInfoType(stat)}'`);
         }
-    } catch (err17) {
-        if (err17 instanceof Deno.errors.NotFound) {
+    } catch (err18) {
+        if (err18 instanceof Deno.errors.NotFound) {
             await ensureDir(dirname5(filePath));
             await Deno.writeFile(filePath, new Uint8Array());
             return;
         }
-        throw err17;
+        throw err18;
     }
 }
 function ensureFileSync(filePath) {
@@ -8779,35 +8779,35 @@ function ensureFileSync(filePath) {
         if (!stat.isFile) {
             throw new Error(`Ensure path exists, expected 'file', got '${getFileInfoType(stat)}'`);
         }
-    } catch (err18) {
-        if (err18 instanceof Deno.errors.NotFound) {
+    } catch (err19) {
+        if (err19 instanceof Deno.errors.NotFound) {
             ensureDirSync(dirname5(filePath));
             Deno.writeFileSync(filePath, new Uint8Array());
             return;
         }
-        throw err18;
+        throw err19;
     }
 }
 async function exists(filePath) {
     try {
         await Deno.lstat(filePath);
         return true;
-    } catch (err19) {
-        if (err19 instanceof Deno.errors.NotFound) {
+    } catch (err20) {
+        if (err20 instanceof Deno.errors.NotFound) {
             return false;
         }
-        throw err19;
+        throw err20;
     }
 }
 function existsSync(filePath) {
     try {
         Deno.lstatSync(filePath);
         return true;
-    } catch (err20) {
-        if (err20 instanceof Deno.errors.NotFound) {
+    } catch (err21) {
+        if (err21 instanceof Deno.errors.NotFound) {
             return false;
         }
-        throw err20;
+        throw err21;
     }
 }
 async function ensureLink(src, dest) {
@@ -8907,13 +8907,13 @@ function include(path55, exts, match, skip) {
     }
     return true;
 }
-function wrapErrorWithRootPath(err21, root) {
-    if (err21 instanceof Error && "root" in err21) return err21;
+function wrapErrorWithRootPath(err22, root) {
+    if (err22 instanceof Error && "root" in err22) return err22;
     const e = new Error();
     e.root = root;
-    e.message = err21 instanceof Error ? `${err21.message} for path "${root}"` : `[non-error thrown] for path "${root}"`;
-    e.stack = err21 instanceof Error ? err21.stack : undefined;
-    e.cause = err21 instanceof Error ? err21.cause : undefined;
+    e.message = err22 instanceof Error ? `${err22.message} for path "${root}"` : `[non-error thrown] for path "${root}"`;
+    e.stack = err22 instanceof Error ? err22.stack : undefined;
+    e.cause = err22 instanceof Error ? err22.cause : undefined;
     return e;
 }
 async function* walk(root, { maxDepth =Infinity , includeFiles =true , includeDirs =true , followSymlinks =false , exts =undefined , match =undefined , skip =undefined  } = {}) {
@@ -8956,8 +8956,8 @@ async function* walk(root, { maxDepth =Infinity , includeFiles =true , includeDi
                 });
             }
         }
-    } catch (err22) {
-        throw wrapErrorWithRootPath(err22, normalize7(root));
+    } catch (err23) {
+        throw wrapErrorWithRootPath(err23, normalize7(root));
     }
 }
 function* walkSync(root, { maxDepth =Infinity , includeFiles =true , includeDirs =true , followSymlinks =false , exts =undefined , match =undefined , skip =undefined  } = {}) {
@@ -8973,8 +8973,8 @@ function* walkSync(root, { maxDepth =Infinity , includeFiles =true , includeDirs
     let entries;
     try {
         entries = Deno.readDirSync(root);
-    } catch (err23) {
-        throw wrapErrorWithRootPath(err23, normalize7(root));
+    } catch (err24) {
+        throw wrapErrorWithRootPath(err24, normalize7(root));
     }
     for (const entry of entries){
         assert1(entry.name != null);
@@ -9254,11 +9254,11 @@ async function ensureValidCopy(src, dest, options) {
     let destStat;
     try {
         destStat = await Deno.lstat(dest);
-    } catch (err24) {
-        if (err24 instanceof Deno.errors.NotFound) {
+    } catch (err25) {
+        if (err25 instanceof Deno.errors.NotFound) {
             return;
         }
-        throw err24;
+        throw err25;
     }
     if (options.isFolder && !destStat.isDirectory) {
         throw new Error(`Cannot overwrite non-directory '${dest}' with directory '${src}'.`);
@@ -9272,11 +9272,11 @@ function ensureValidCopySync(src, dest, options) {
     let destStat;
     try {
         destStat = Deno.lstatSync(dest);
-    } catch (err25) {
-        if (err25 instanceof Deno.errors.NotFound) {
+    } catch (err26) {
+        if (err26 instanceof Deno.errors.NotFound) {
             return;
         }
-        throw err25;
+        throw err26;
     }
     if (options.isFolder && !destStat.isDirectory) {
         throw new Error(`Cannot overwrite non-directory '${dest}' with directory '${src}'.`);
@@ -9652,20 +9652,20 @@ class BytesList {
         });
         this.len += end - start;
     }
-    shift(n1) {
-        if (n1 === 0) {
+    shift(n6) {
+        if (n6 === 0) {
             return;
         }
-        if (this.len <= n1) {
+        if (this.len <= n6) {
             this.chunks = [];
             this.len = 0;
             return;
         }
-        const idx = this.getChunkIndex(n1);
+        const idx = this.getChunkIndex(n6);
         this.chunks.splice(0, idx);
         const [chunk] = this.chunks;
         if (chunk) {
-            const diff2 = n1 - chunk.offset;
+            const diff2 = n6 - chunk.offset;
             chunk.start += diff2;
         }
         let offset = 0;
@@ -9886,7 +9886,7 @@ function* iterSync(r, options) {
     }
 }
 async function copy2(src, dst, options) {
-    let n3 = 0;
+    let n7 = 0;
     const bufSize = options?.bufSize ?? DEFAULT_BUFFER_SIZE;
     const b = new Uint8Array(bufSize);
     let gotEOF = false;
@@ -9899,22 +9899,23 @@ async function copy2(src, dst, options) {
             while(nwritten < result){
                 nwritten += await dst.write(b.subarray(nwritten, result));
             }
-            n3 += nwritten;
+            n7 += nwritten;
         }
     }
-    return n3;
+    return n7;
 }
 const DEFAULT_BUF_SIZE = 4096;
 const MIN_BUF_SIZE = 16;
 const CR = "\r".charCodeAt(0);
 const LF = "\n".charCodeAt(0);
 class BufferFullError extends Error {
-    partial;
-    name = "BufferFullError";
+    name;
     constructor(partial){
         super("Buffer full");
         this.partial = partial;
+        this.name = "BufferFullError";
     }
+    partial;
 }
 class PartialReadError extends Error {
     name = "PartialReadError";
@@ -10009,18 +10010,18 @@ class BufReader {
                     }
                 }
                 bytesRead += rr;
-            } catch (err26) {
-                if (err26 instanceof PartialReadError) {
-                    err26.partial = p.subarray(0, bytesRead);
-                } else if (err26 instanceof Error) {
+            } catch (err27) {
+                if (err27 instanceof PartialReadError) {
+                    err27.partial = p.subarray(0, bytesRead);
+                } else if (err27 instanceof Error) {
                     const e = new PartialReadError();
                     e.partial = p.subarray(0, bytesRead);
-                    e.stack = err26.stack;
-                    e.message = err26.message;
-                    e.cause = err26.cause;
-                    throw err26;
+                    e.stack = err27.stack;
+                    e.message = err27.message;
+                    e.cause = err27.cause;
+                    throw err27;
                 }
-                throw err26;
+                throw err27;
             }
         }
         return p;
@@ -10046,17 +10047,17 @@ class BufReader {
         let line = null;
         try {
             line = await this.readSlice(LF);
-        } catch (err27) {
-            if (err27 instanceof Deno.errors.BadResource) {
-                throw err27;
+        } catch (err28) {
+            if (err28 instanceof Deno.errors.BadResource) {
+                throw err28;
             }
             let partial;
-            if (err27 instanceof PartialReadError) {
-                partial = err27.partial;
+            if (err28 instanceof PartialReadError) {
+                partial = err28.partial;
                 assert1(partial instanceof Uint8Array, "bufio: caught error from `readSlice()` without `partial` property");
             }
-            if (!(err27 instanceof BufferFullError)) {
-                throw err27;
+            if (!(err28 instanceof BufferFullError)) {
+                throw err28;
             }
             if (!this.eof && partial && partial.byteLength > 0 && partial[partial.byteLength - 1] === CR) {
                 assert1(this.r > 0, "bufio: tried to rewind past start of buffer");
@@ -10120,36 +10121,12 @@ class BufReader {
             s = this.w - this.r;
             try {
                 await this._fill();
-            } catch (err28) {
-                if (err28 instanceof PartialReadError) {
-                    err28.partial = slice;
-                } else if (err28 instanceof Error) {
-                    const e = new PartialReadError();
-                    e.partial = slice;
-                    e.stack = err28.stack;
-                    e.message = err28.message;
-                    e.cause = err28.cause;
-                    throw err28;
-                }
-                throw err28;
-            }
-        }
-        return slice;
-    }
-    async peek(n4) {
-        if (n4 < 0) {
-            throw Error("negative count");
-        }
-        let avail = this.w - this.r;
-        while(avail < n4 && avail < this.buf.byteLength && !this.eof){
-            try {
-                await this._fill();
             } catch (err29) {
                 if (err29 instanceof PartialReadError) {
-                    err29.partial = this.buf.subarray(this.r, this.w);
+                    err29.partial = slice;
                 } else if (err29 instanceof Error) {
                     const e = new PartialReadError();
-                    e.partial = this.buf.subarray(this.r, this.w);
+                    e.partial = slice;
                     e.stack = err29.stack;
                     e.message = err29.message;
                     e.cause = err29.cause;
@@ -10157,16 +10134,40 @@ class BufReader {
                 }
                 throw err29;
             }
+        }
+        return slice;
+    }
+    async peek(n8) {
+        if (n8 < 0) {
+            throw Error("negative count");
+        }
+        let avail = this.w - this.r;
+        while(avail < n8 && avail < this.buf.byteLength && !this.eof){
+            try {
+                await this._fill();
+            } catch (err30) {
+                if (err30 instanceof PartialReadError) {
+                    err30.partial = this.buf.subarray(this.r, this.w);
+                } else if (err30 instanceof Error) {
+                    const e = new PartialReadError();
+                    e.partial = this.buf.subarray(this.r, this.w);
+                    e.stack = err30.stack;
+                    e.message = err30.message;
+                    e.cause = err30.cause;
+                    throw err30;
+                }
+                throw err30;
+            }
             avail = this.w - this.r;
         }
         if (avail === 0 && this.eof) {
             return null;
-        } else if (avail < n4 && this.eof) {
+        } else if (avail < n8 && this.eof) {
             return this.buf.subarray(this.r, this.r + avail);
-        } else if (avail < n4) {
+        } else if (avail < n8) {
             throw new BufferFullError(this.buf.subarray(this.r, this.w));
         }
-        return this.buf.subarray(this.r, this.r + n4);
+        return this.buf.subarray(this.r, this.r + n8);
     }
 }
 class AbstractBufBase {
@@ -10184,7 +10185,6 @@ class AbstractBufBase {
     }
 }
 class BufWriter extends AbstractBufBase {
-    writer;
     static create(writer, size = 4096) {
         return writer instanceof BufWriter ? writer : new BufWriter(writer, size);
     }
@@ -10243,9 +10243,9 @@ class BufWriter extends AbstractBufBase {
         totalBytesWritten += numBytesWritten;
         return totalBytesWritten;
     }
+    writer;
 }
 class BufWriterSync extends AbstractBufBase {
-    writer;
     static create(writer, size = 4096) {
         return writer instanceof BufWriterSync ? writer : new BufWriterSync(writer, size);
     }
@@ -10304,6 +10304,7 @@ class BufWriterSync extends AbstractBufBase {
         totalBytesWritten += numBytesWritten;
         return totalBytesWritten;
     }
+    writer;
 }
 function createLPS(pat) {
     const lps = new Uint8Array(pat.length);
@@ -10404,11 +10405,11 @@ async function copyN(r, dest, size) {
         const nread = result ?? 0;
         bytesRead += nread;
         if (nread > 0) {
-            let n5 = 0;
-            while(n5 < nread){
-                n5 += await dest.write(buf.slice(n5, nread));
+            let n9 = 0;
+            while(n9 < nread){
+                n9 += await dest.write(buf.slice(n9, nread));
             }
-            assert1(n5 === nread, "could not write");
+            assert1(n9 === nread, "could not write");
         }
         if (result === null) {
             break;
@@ -10445,7 +10446,7 @@ async function readLong(buf) {
 function sliceLongToBytes(d, dest = new Array(8)) {
     let big = BigInt(d);
     for(let i = 0; i < 8; i++){
-        dest[7 - i] = Number(big & 255n);
+        dest[7 - i] = Number(big & 0xffn);
         big >>= 8n;
     }
     return dest;
@@ -10473,8 +10474,6 @@ class MultiReader {
     }
 }
 class LimitedReader {
-    reader;
-    limit;
     constructor(reader, limit){
         this.reader = reader;
         this.limit = limit;
@@ -10486,13 +10485,15 @@ class LimitedReader {
         if (p.length > this.limit) {
             p = p.subarray(0, this.limit);
         }
-        const n6 = await this.reader.read(p);
-        if (n6 == null) {
+        const n10 = await this.reader.read(p);
+        if (n10 == null) {
             return null;
         }
-        this.limit -= n6;
-        return n6;
+        this.limit -= n10;
+        return n10;
     }
+    reader;
+    limit;
 }
 function isCloser(value) {
     return typeof value === "object" && value != null && "close" in value && typeof value["close"] === "function";
@@ -10516,11 +10517,11 @@ function readerFromIterable(iterable) {
                     return p.byteLength;
                 }
             } else {
-                const n7 = await buffer.read(p);
-                if (n7 == null) {
+                const n11 = await buffer.read(p);
+                if (n11 == null) {
                     return this.read(p);
                 }
-                return n7;
+                return n11;
             }
         }
     };
@@ -10595,7 +10596,7 @@ function readableStreamFromIterable(iterable) {
     });
 }
 function readableStreamFromReader(reader, options = {}) {
-    const { autoClose =true , chunkSize =16640 , strategy ,  } = options;
+    const { autoClose =true , chunkSize =16_640 , strategy ,  } = options;
     return new ReadableStream({
         async pull (controller) {
             const chunk = new Uint8Array(chunkSize);
@@ -10625,12 +10626,13 @@ function readableStreamFromReader(reader, options = {}) {
 }
 const decoder = new TextDecoder();
 class StringWriter {
-    base;
-    chunks = [];
-    byteLength = 0;
+    chunks;
+    byteLength;
     cache;
     constructor(base = ""){
         this.base = base;
+        this.chunks = [];
+        this.byteLength = 0;
         const c = new TextEncoder().encode(base);
         this.chunks.push(c);
         this.byteLength += c.byteLength;
@@ -10657,6 +10659,7 @@ class StringWriter {
         this.cache = decoder.decode(buf);
         return this.cache;
     }
+    base;
 }
 const mod6 = {
     Buffer,
@@ -10692,17 +10695,6 @@ const mod6 = {
     readableStreamFromIterable,
     readableStreamFromReader,
     StringWriter
-};
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-function validate(id) {
-    return UUID_RE.test(id);
-}
-function generate() {
-    return crypto.randomUUID();
-}
-const mod7 = {
-    validate: validate,
-    generate: generate
 };
 var LogLevels;
 (function(LogLevels1) {
@@ -11142,7 +11134,7 @@ async function setup(config) {
     }
 }
 await setup(DEFAULT_CONFIG);
-const mod8 = await async function() {
+const mod7 = await async function() {
     return {
         LogLevels: LogLevels,
         Logger: Logger,
@@ -11158,24 +11150,24 @@ const mod8 = await async function() {
     };
 }();
 function logAndFlush(level, msg) {
-    const logger = mod8.getLogger();
+    const logger = mod7.getLogger();
     switch(level){
-        case mod8.LogLevels.DEBUG:
+        case mod7.LogLevels.DEBUG:
             {
                 logger.debug(msg);
                 break;
             }
-        case mod8.LogLevels.ERROR:
+        case mod7.LogLevels.ERROR:
             {
                 logger.error(msg);
                 break;
             }
-        case mod8.LogLevels.INFO:
+        case mod7.LogLevels.INFO:
             {
                 logger.info(msg);
                 break;
             }
-        case mod8.LogLevels.WARNING:
+        case mod7.LogLevels.WARNING:
             {
                 logger.warning(msg);
                 break;
@@ -11206,16 +11198,16 @@ function logAndFlush(level, msg) {
 }
 const __default5 = {
     debug (msg) {
-        logAndFlush(mod8.LogLevels.DEBUG, msg);
+        logAndFlush(mod7.LogLevels.DEBUG, msg);
     },
     error (msg) {
-        logAndFlush(mod8.LogLevels.ERROR, msg);
+        logAndFlush(mod7.LogLevels.ERROR, msg);
     },
     info (msg) {
-        logAndFlush(mod8.LogLevels.INFO, msg);
+        logAndFlush(mod7.LogLevels.INFO, msg);
     },
     warning (msg) {
-        logAndFlush(mod8.LogLevels.WARNING, msg);
+        logAndFlush(mod7.LogLevels.WARNING, msg);
     }
 };
 const __default6 = {
@@ -11768,8 +11760,8 @@ const __default10 = async (logger, ev)=>{
     } catch (_) {}
 };
 const __default11 = async (logger, ev, e)=>{
-    const err30 = e?.stack || String(e);
-    const msg = `Server Error, method: [${ev.request.method}], url: [${ev.request.url}], error: \n${err30}`;
+    const err31 = e?.stack || String(e);
+    const msg = `Server Error, method: [${ev.request.method}], url: [${ev.request.url}], error: \n${err31}`;
     logger.error(msg);
     const headers = new Headers();
     headers.set("content-type", "application/json");
@@ -12008,7 +12000,7 @@ const __default12 = (url)=>{
 const __default13 = (reader)=>{
     return new ReadableStream({
         async pull (controller) {
-            const chunk = new Uint8Array(16640);
+            const chunk = new Uint8Array(16_640);
             try {
                 const read = await reader.read(chunk);
                 if (read === null) {
@@ -12493,11 +12485,11 @@ function existsSync1(filePath) {
     try {
         Deno.lstatSync(filePath);
         return true;
-    } catch (err31) {
-        if (err31 instanceof Deno.errors.NotFound) {
+    } catch (err32) {
+        if (err32 instanceof Deno.errors.NotFound) {
             return false;
         }
-        throw err31;
+        throw err32;
     }
 }
 let workerStarted = false;
@@ -12542,8 +12534,7 @@ async function winscmStartDispatcher(opts) {
     worker.postMessage(JSON.stringify(workerRequest));
     await promise;
 }
-export { mod7 as uuidv4 };
-export { mod8 as log, __default5 as logger };
+export { mod7 as log, __default5 as logger };
 export { dayjs as dayjs };
 export { Yargs as yargs };
 export { __default7 as js2xml };
